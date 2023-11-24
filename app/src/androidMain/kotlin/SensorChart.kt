@@ -31,13 +31,9 @@ import kotlin.math.min
 data class Sample(
     val t: Float,
     val x: Float,
-    val y: Float,
-    val z: Float,
 )
 
 private val xLinePaint = Paint.Stroke(steelBlue, 1f)
-private val yLinePaint = Paint.Stroke(limeGreen, 1f)
-private val zLinePaint = Paint.Stroke(orange, 1f)
 
 internal fun sensorChart(root: RootElement, width: Float, height: Float, data: List<Sample>) {
     val leftMargin = 60f
@@ -53,18 +49,12 @@ internal fun sensorChart(root: RootElement, width: Float, height: Float, data: L
         .range(0f, innerWidth)
 
     val y = scale()
-        .domain(listOf(data.min { min(min(it.x, it.y), it.z) }, data.max { max(max(it.x, it.y), it.z) }))
+        .domain(listOf(data.min { it.x }, data.max { it.x }))
         .range(innerHeight, 0f)
 
     val xLine = line<Sample>()
         .x { (p) -> x.scale(p.t) }
         .y { (p) -> y.scale(p.x) }
-    val yLine = line<Sample>()
-        .x { (p) -> x.scale(p.t) }
-        .y { (p) -> y.scale(p.y) }
-    val zLine = line<Sample>()
-        .x { (p) -> x.scale(p.t) }
-        .y { (p) -> y.scale(p.z) }
 
     val body = root.asSelection()
         .selectAll(TransformElement.withKind("body"))
@@ -103,27 +93,5 @@ internal fun sensorChart(root: RootElement, width: Float, height: Float, data: L
             }
         }.each { (d) ->
             path = xLine.render(d)
-        }
-
-    body.selectAll(PathElement.withKind("y-line"))
-        .data(listOf(data, data))
-        .join {
-            append(PathElement).each {
-                kind = "y-line"
-                paint = yLinePaint
-            }
-        }.each { (d) ->
-            path = yLine.render(d)
-        }
-
-    body.selectAll(PathElement.withKind("z-line"))
-        .data(listOf(data, data))
-        .join {
-            append(PathElement).each {
-                kind = "z-line"
-                paint = zLinePaint
-            }
-        }.each { (d) ->
-            path = zLine.render(d)
         }
 }

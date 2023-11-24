@@ -68,7 +68,7 @@ class Script {
     private suspend fun SensorTag.establishConnection(): Unit = coroutineScope {
         status.emit("Connecting")
         connect()
-        enableGyro()
+        //enableGyro()
         status.emit("Connected")
     }
 

@@ -16,14 +16,15 @@ import kotlinx.coroutines.flow.map
 
 private const val GYRO_MULTIPLIER = 500f / 65536f
 
-//const val sensorTagUuid = "0000aa80-0000-1000-8000-00805f9b34fb"
+// Bluno Beetle Chip UUID
 const val sensorTagUuid = "0000dfb0-0000-1000-8000-00805f9b34fb"
-//private val movementSensorServiceUuid = sensorTagUuid("aa80")
+// Function call to format characteristics
 private val movementSensorServiceUuid = sensorTagUuid("180d")
 private val movementSensorDataUuid = sensorTagUuid("2a37")
 private val movementNotificationUuid = sensorTagUuid("2a37")
 private val movementConfigurationUuid = sensorTagUuid("2a37")
 private val movementPeriodUuid = sensorTagUuid("2a37")
+// Client Characteristic is always standard
 private val clientCharacteristicConfigUuid = Bluetooth.BaseUuid + 0x2902
 
 private val movementConfigCharacteristic = characteristicOf(
@@ -93,6 +94,7 @@ class SensorTag(
     }
 
     suspend fun disableGyro() {
+        Log.info { "disabled gyro" }
         //peripheral.write(movementConfigCharacteristic, byteArrayOf(0x0, 0x0), WithResponse)
     }
 }

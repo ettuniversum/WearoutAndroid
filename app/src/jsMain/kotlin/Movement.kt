@@ -1,6 +1,6 @@
 package com.juul.sensortag
 
-typealias MovementListener = (x: Float, y: Float, z: Float) -> Unit
+typealias MovementListener = (x: Float) -> Unit
 
 @JsExport
 class Movement {
@@ -8,8 +8,8 @@ class Movement {
     private val listeners = mutableListOf<MovementListener>()
 
     internal fun emit(movement: Vector3f) {
-        val (x, y, z) = movement
-        listeners.forEach { listener -> listener.invoke(x, y, z) }
+        val (x) = movement
+        listeners.forEach { listener -> listener.invoke(x) }
     }
 
     fun addListener(listener: MovementListener) { listeners += listener }

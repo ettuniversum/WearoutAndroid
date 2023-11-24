@@ -61,8 +61,6 @@ sealed class ViewState {
 
         data class GyroState(
             val x: AxisState,
-            val y: AxisState,
-            val z: AxisState
         ) {
 
             data class AxisState(
@@ -84,6 +82,7 @@ val ViewState.label: String
         is ViewState.Connected -> "Connected"
         ViewState.Disconnecting -> "Disconnecting"
         ViewState.Disconnected -> "Disconnected"
+        else -> throw AssertionError()
     }
 
 class SensorViewModel(
@@ -111,7 +110,7 @@ class SensorViewModel(
         .onStart { startTime = TimeSource.Monotonic.markNow() }
         .scan(emptyList<Sample>()) { accumulator, value ->
             val t = startTime!!.elapsedNow().inWholeMilliseconds / 1000f
-            accumulator.takeLast(50) + Sample(t, value.x, value.y, value.z)
+            accumulator.takeLast(50) + Sample(t, value.x)
         }
         .filter { it.size > 3 }
 
@@ -170,8 +169,6 @@ class SensorViewModel(
         val progress = gyro.progress(max.maxOf(gyro))
         return GyroState(
             x = AxisState(degreesPerSecond = gyro.x, progress = progress.x),
-            y = AxisState(degreesPerSecond = gyro.y, progress = progress.y),
-            z = AxisState(degreesPerSecond = gyro.z, progress = progress.z),
         )
     }
 
@@ -214,18 +211,12 @@ private suspend fun SensorTag.writeGyroPeriodProgress(progress: Int) {
 
 private fun Vector3f.progress(max: Max) = Vector3f(
     if (max.x != 0f) x.absoluteValue / max.x else 0f,
-    if (max.y != 0f) y.absoluteValue / max.y else 0f,
-    if (max.z != 0f) z.absoluteValue / max.z else 0f,
 )
 
 private data class Max(
     var x: Float = 0f,
-    var y: Float = 0f,
-    var z: Float = 0f
 ) {
     fun maxOf(vector: Vector3f) = apply {
         x = maxOf(x, vector.x.absoluteValue)
-        y = maxOf(y, vector.y.absoluteValue)
-        z = maxOf(z, vector.z.absoluteValue)
     }
 }
