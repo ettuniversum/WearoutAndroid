@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.map
 private const val GYRO_MULTIPLIER = 500f / 65536f
 
 // Bluno Beetle Chip UUID
-const val sensorTagUuid = "0000dfb0-0000-1000-8000-00805f9b34fb"
+const val sensorTagUuid = "0000180d-0000-1000-8000-00805f9b34fb"
 // Function call to format characteristics
 private val movementSensorServiceUuid = sensorTagUuid("180d")
 private val movementSensorDataUuid = sensorTagUuid("2a37")
@@ -100,7 +100,7 @@ class SensorTag(
 }
 
 private fun sensorTagUuid(short16BitUuid: String): Uuid =
-    uuidFrom("f000${short16BitUuid.lowercase()}-0000-1000-8000-00805f9b34fb")
+    uuidFrom("0000${short16BitUuid.lowercase()}-0000-1000-8000-00805f9b34fb")
 // uuidFrom("f000${short16BitUuid.lowercase()}-0451-4000-b000-000000000000")
 
 private fun characteristicOf(service: Uuid, characteristic: Uuid) =
