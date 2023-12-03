@@ -172,7 +172,7 @@ private fun AppBar(viewModel: ScanViewModel, bluetooth: Bluetooth.Availability?)
 
     TopAppBar(
         title = {
-            Text("SensorTag Example")
+            Text("Wearout")
         },
         actions = {
             if (bluetooth == Available) {

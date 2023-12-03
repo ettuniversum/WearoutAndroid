@@ -166,7 +166,7 @@ class SensorViewModel(
 
     private val max = Max()
     private fun gyroState(gyro: Vector3f): GyroState {
-        val progress = gyro.progress(max.maxOf(gyro))
+        val progress = gyro
         return GyroState(
             x = AxisState(degreesPerSecond = gyro.x, progress = progress.x),
         )

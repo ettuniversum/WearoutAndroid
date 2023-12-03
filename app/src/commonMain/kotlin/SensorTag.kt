@@ -66,13 +66,12 @@ class SensorTag(
     val gyro: Flow<Vector3f> = peripheral
         .observe(movementDataCharacteristic)
         .map(::Vector3f)
-        .map { it * GYRO_MULTIPLIER }
 
     /** Set period, allowable range is 100-2550 ms. */
     suspend fun writeGyroPeriod(periodMillis: Long) {
         require(periodMillis in 100..2550) { "Period must be in the range 100-2550, was $periodMillis." }
 
-        val value = periodMillis / 10
+        val value = periodMillis / 1
         val data = byteArrayOf(value.toByte())
 
         Log.verbose { "Writing gyro period" }

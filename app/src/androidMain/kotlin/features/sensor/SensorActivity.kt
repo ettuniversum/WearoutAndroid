@@ -59,7 +59,7 @@ class SensorActivity : ComponentActivity() {
                     Modifier
                         .background(color = MaterialTheme.colors.background)
                         .fillMaxSize()) {
-                    TopAppBar(title = { Text("SensorTag Example") })
+                    TopAppBar(title = { Text("Wearout") })
 
                     ProvideTextStyle(
                         TextStyle(color = contentColorFor(backgroundColor = MaterialTheme.colors.background))
@@ -81,7 +81,7 @@ class SensorActivity : ComponentActivity() {
                                     }
                                 })
 
-                            Spacer(Modifier.size(20.dp))
+/*                            Spacer(Modifier.size(20.dp))
                             Text("Period:")
 
                             var sliderPosition by remember { mutableFloatStateOf(0f) }
@@ -90,7 +90,7 @@ class SensorActivity : ComponentActivity() {
                                 valueRange = 0f..100f,
                                 onValueChange = { sliderPosition = it },
                                 onValueChangeFinished = { viewModel.setPeriod(sliderPosition.roundToInt()) },
-                            )
+                            )*/
                         }
                     }
                 }

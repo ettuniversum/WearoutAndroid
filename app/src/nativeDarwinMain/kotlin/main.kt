@@ -37,7 +37,7 @@ fun main() = runBlocking<Unit> {
         peripheral.connect()
         Log.info { "Connected" }
 
-        sensorTag.writeGyroPeriod(periodMillis = 2550L)
+        sensorTag.writeGyroPeriod(periodMillis = 100L)
         sensorTag.enableGyro()
     }
 
