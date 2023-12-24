@@ -9,7 +9,7 @@ capabilities/usage of [Kable] library.
 
 ## Android
 
-![Android app screen recording](artwork/android.gif)
+![Android app screen recording](artwork/Wearout.gif)
 
 The Android App can be built and installed via [Android Studio], or via command line by executing:
 
