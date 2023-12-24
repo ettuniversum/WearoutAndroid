@@ -18,6 +18,7 @@ import com.juul.krayon.scale.domain
 import com.juul.krayon.scale.extent
 import com.juul.krayon.scale.range
 import com.juul.krayon.scale.scale
+import com.juul.krayon.scale.ContinuousScale
 import com.juul.krayon.selection.append
 import com.juul.krayon.selection.asSelection
 import com.juul.krayon.selection.data
@@ -25,6 +26,7 @@ import com.juul.krayon.selection.each
 import com.juul.krayon.selection.join
 import com.juul.krayon.selection.selectAll
 import com.juul.krayon.shape.line
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
@@ -49,7 +51,7 @@ internal fun sensorChart(root: RootElement, width: Float, height: Float, data: L
         .range(0f, innerWidth)
 
     val y = scale()
-        .domain(listOf(data.min { it.x }, data.max { it.x }))
+        .domain(listOf(data.min { it.x}, data.max { it.x+1}))
         .range(innerHeight, 0f)
 
     val xLine = line<Sample>()

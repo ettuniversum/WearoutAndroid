@@ -1,11 +1,10 @@
 package com.juul.sensortag
 
+//import java.nio.ByteBuffer
 data class Vector3f(val x: Float)
-
 fun Vector3f(data: ByteArray) = Vector3f(
-    x = data.get(0).toFloat(),
+    x = data.readShort(0).toFloat(),
 )
-
 operator fun Vector3f.times(scalar: Float) = Vector3f(x * scalar)
 
 // readShort is little endian (or less than 127)

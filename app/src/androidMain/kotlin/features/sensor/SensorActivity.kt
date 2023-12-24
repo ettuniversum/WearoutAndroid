@@ -31,11 +31,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.juul.exercise.annotations.Exercise
 import com.juul.exercise.annotations.Extra
+import com.juul.kable.State
 import com.juul.krayon.element.view.ElementView
 import com.juul.krayon.element.view.ElementViewAdapter
 import com.juul.sensortag.AppTheme
 import com.juul.sensortag.features.sensor.ViewState.Disconnected
+import com.juul.sensortag.features.sensor.ViewState.Connected.GyroState.AxisState
 import com.juul.sensortag.sensorChart
+import kotlinx.coroutines.flow.count
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.single
 import kotlin.math.roundToInt
 
 
@@ -81,9 +86,10 @@ class SensorActivity : ComponentActivity() {
                                     }
                                 })
 
-/*                            Spacer(Modifier.size(20.dp))
-                            Text("Period:")
+                            Spacer(Modifier.size(20.dp))
 
+
+                            /*
                             var sliderPosition by remember { mutableFloatStateOf(0f) }
                             Slider(
                                 value = sliderPosition,

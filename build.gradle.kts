@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.kotlin.multiplatform) apply false
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.android.application) apply false
+    id("org.jetbrains.kotlin.jvm") version "1.5.31"
 }
 
 allprojects {
@@ -18,4 +19,8 @@ allprojects {
         mavenCentral()
         maven("https://oss.sonatype.org/content/repositories/snapshots")
     }
+}
+
+dependencies {
+    implementation("org.jetbrains.kotlin:kotlin-stdlib")
 }
