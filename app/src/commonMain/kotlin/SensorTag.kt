@@ -3,10 +3,8 @@ package com.juul.sensortag
 import com.benasher44.uuid.Uuid
 import com.benasher44.uuid.uuidFrom
 import com.juul.kable.Bluetooth
-import com.juul.kable.Filter
 import com.juul.kable.Peripheral
 import com.juul.kable.Scanner
-import com.juul.kable.WriteType.WithResponse
 import com.juul.kable.characteristicOf
 import com.juul.kable.logs.Logging.Level.Events
 import com.juul.tuulbox.encoding.toHexString
@@ -14,32 +12,25 @@ import com.juul.tuulbox.logging.Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-private const val GYRO_MULTIPLIER = 500f / 65536f
+// Qtpy UUID
+const val sensorTagUuid = "0000180d-0000-1000-8000-00805f9b34Fb"
 
-// Bluno Beetle Chip UUID
-const val sensorTagUuid = "0000180d-0000-1000-8000-00805f9b34fb"
 // Function call to format characteristics
-private val movementSensorServiceUuid = sensorTagUuid("180d")
-private val movementSensorDataUuid = sensorTagUuid("2a37")
-private val movementNotificationUuid = sensorTagUuid("2a37")
-private val movementConfigurationUuid = sensorTagUuid("2a37")
-private val movementPeriodUuid = sensorTagUuid("2a37")
+private val heartSensorServiceUuid = sensorTagUuid("180d")
+private val heartSensorDataUuid = sensorTagUuid("2a37")
+private val heartNotificationUuid = sensorTagUuid("2a38")
+
 // Client Characteristic is always standard
 private val clientCharacteristicConfigUuid = Bluetooth.BaseUuid + 0x2902
 
-private val movementConfigCharacteristic = characteristicOf(
-    service = movementSensorServiceUuid,
-    characteristic = movementConfigurationUuid,
+private val heartNotifCharacteristic = characteristicOf(
+    service = heartSensorServiceUuid,
+    characteristic = heartNotificationUuid,
 )
 
-private val movementDataCharacteristic = characteristicOf(
-    service = movementSensorServiceUuid,
-    characteristic = movementSensorDataUuid,
-)
-
-private val movementPeriodCharacteristic = characteristicOf(
-    service = movementSensorServiceUuid,
-    characteristic = movementPeriodUuid,
+private val heartDataCharacteristic = characteristicOf(
+    service = heartSensorServiceUuid,
+    characteristic = heartSensorDataUuid,
 )
 
 val scanner = Scanner {
@@ -51,11 +42,9 @@ val scanner = Scanner {
 }
 
 val services = listOf(
-    movementSensorServiceUuid,
-    movementSensorDataUuid,
-    movementNotificationUuid,
-    movementConfigurationUuid,
-    movementPeriodUuid,
+    heartSensorServiceUuid,
+    heartSensorDataUuid,
+    heartNotifCharacteristic,
     clientCharacteristicConfigUuid,
 )
 
@@ -64,7 +53,7 @@ class SensorTag(
 ) : Peripheral by peripheral {
 
     val gyro: Flow<Vector3f> = peripheral
-        .observe(movementDataCharacteristic)
+        .observe(heartDataCharacteristic)
         .map(::Vector3f)
 
     /** Set period, allowable range is 100-2550 ms. */
@@ -72,7 +61,7 @@ class SensorTag(
         require(periodMillis in 100..2550) { "Period must be in the range 100-2550, was $periodMillis." }
 
         val value = periodMillis / 1
-        val data = byteArrayOf(value.toByte())
+        byteArrayOf(value.toByte())
 
         Log.verbose { "Writing gyro period" }
         //peripheral.write(movementPeriodCharacteristic, data, WithResponse)
@@ -81,13 +70,13 @@ class SensorTag(
 
     /** Period (in milliseconds) within the range 100-2550 ms. */
     suspend fun readGyroPeriod(): Int {
-        val value = peripheral.read(movementPeriodCharacteristic)
+        val value = peripheral.read(heartDataCharacteristic)
         Log.info { "movement → readPeriod → value = ${value.toHexString()}" }
         return value[0].toInt() and 0xFF * 10
     }
 
     suspend fun enableGyro() {
-        Log.info { "Enabling gyro" }
+        Log.info { "Enabling heart rate sensor..." }
         //peripheral.write(movementConfigCharacteristic, byteArrayOf(0x7F, 0x0), WithResponse)
         Log.info { "Gyro enabled" }
     }
