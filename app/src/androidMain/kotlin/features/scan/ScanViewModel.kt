@@ -48,8 +48,10 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
                     .catch { cause -> _status.value = ScanStatus.Failed(cause.message ?: "Unknown error") }
                     .onCompletion { cause -> if (cause == null || cause is CancellationException) _status.value = Stopped }
                     .collect { advertisement ->
-                        found[advertisement.address] = advertisement
-                        _advertisements.value = found.values.toList()
+                        if (advertisement.name == "Wearout") {
+                            found[advertisement.address] = advertisement
+                            _advertisements.value = found.values.toList()
+                        }
                     }
             }
         }
