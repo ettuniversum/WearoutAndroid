@@ -15,7 +15,7 @@ kotlin {
     macosX64 {
         binaries {
             executable {
-                baseName = "sensortag"
+                baseName = "adafruit"
                 entryPoint = "com.juul.sensortag.main"
             }
         }
@@ -23,7 +23,7 @@ kotlin {
     macosArm64 {
         binaries {
             executable {
-                baseName = "sensortag"
+                baseName = "adafruit"
                 entryPoint = "com.juul.sensortag.main"
             }
         }

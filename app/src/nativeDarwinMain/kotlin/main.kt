@@ -14,11 +14,11 @@ import kotlinx.coroutines.runBlocking
 import kotlin.time.Duration.Companion.seconds
 
 fun main() = runBlocking<Unit> {
-    Log.tagGenerator = ConstantTagGenerator(tag = "SensorTag")
+    Log.tagGenerator = ConstantTagGenerator(tag = "Adafruit")
     Log.dispatcher.install(ConsoleLogger)
 
-    Log.info { "Searching for SensorTag..." }
-    val advertisement = scanner.advertisements.first()
+    Log.info { "Searching for Adafruit..." }
+    val advertisement = adafruitScanner.advertisements.first()
     Log.info { "Found $advertisement" }
 
     val peripheral = peripheral(advertisement) {
@@ -26,9 +26,9 @@ fun main() = runBlocking<Unit> {
             level = Data
         }
     }
-    val sensorTag = SensorTag(peripheral)
+    val adafruit = Adafruit(peripheral)
 
-    sensorTag.gyro.onEach { rotation ->
+    adafruit.gyro.onEach { rotation ->
         Log.info { rotation.toString() }
     }.launchIn(this)
 
@@ -37,8 +37,8 @@ fun main() = runBlocking<Unit> {
         peripheral.connect()
         Log.info { "Connected" }
 
-        sensorTag.readGyroPeriod()
-        sensorTag.enableGyro()
+        adafruit.readGyroPeriod()
+        adafruit.enableGyro()
     }
 
     Log.info { "Configuring auto connector" }

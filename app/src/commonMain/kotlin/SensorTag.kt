@@ -13,12 +13,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 // Qtpy UUID
-const val sensorTagUuid = "0000180d-0000-1000-8000-00805f9b34Fb"
+const val adafruitUuid = "0000180d-0000-1000-8000-00805f9b34Fb"
 
 // Function call to format characteristics
-private val heartSensorServiceUuid = sensorTagUuid("180d")
-private val heartSensorDataUuid = sensorTagUuid("2a37")
-private val heartNotificationUuid = sensorTagUuid("2a38")
+private val heartSensorServiceUuid = adafruitUuid("180d")
+private val heartSensorDataUuid = adafruitUuid("2a37")
+private val heartNotificationUuid = adafruitUuid("2a38")
 
 // Client Characteristic is always standard
 private val clientCharacteristicConfigUuid = Bluetooth.BaseUuid + 0x2902
@@ -33,22 +33,22 @@ private val heartDataCharacteristic = characteristicOf(
     characteristic = heartSensorDataUuid,
 )
 
-val scanner = Scanner {
+val adafruitScanner = Scanner {
     logging {
         level = Events
     }
-    //filters = listOf(Filter.Service(uuidFrom(sensorTagUuid)))
+    //filters = listOf(Filter.Service(uuidFrom(adafruitUuid)))
     filters = null
 }
 
-val services = listOf(
+val adafruitServices = listOf(
     heartSensorServiceUuid,
     heartSensorDataUuid,
     heartNotifCharacteristic,
     clientCharacteristicConfigUuid,
 )
 
-class SensorTag(
+class Adafruit(
     private val peripheral: Peripheral
 ) : Peripheral by peripheral {
 
@@ -87,7 +87,7 @@ class SensorTag(
     }
 }
 
-private fun sensorTagUuid(short16BitUuid: String): Uuid =
+private fun adafruitUuid(short16BitUuid: String): Uuid =
     uuidFrom("0000${short16BitUuid.lowercase()}-0000-1000-8000-00805f9b34fb")
 // uuidFrom("f000${short16BitUuid.lowercase()}-0451-4000-b000-000000000000")
 

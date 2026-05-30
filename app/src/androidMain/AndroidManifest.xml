@@ -10,7 +10,7 @@
 
     <application
         android:name=".App"
-        android:label="SensorTag Example"
+        android:label="Adafruit Example"
         android:theme="@android:style/Theme.Material.NoActionBar"
         >
 
@@ -27,7 +27,7 @@
         </activity>
 
         <activity
-            android:name=".features.sensor.SensorActivity"
+            android:name=".features.sensor.AdafruitActivity"
             android:exported="false"
             />
 
