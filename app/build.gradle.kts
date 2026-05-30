@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     kotlin("multiplatform")
     id("com.google.devtools.ksp")
+    alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
@@ -37,6 +38,7 @@ kotlin {
                 implementation(libs.tuulbox.logging)
                 implementation(libs.tuulbox.encoding)
                 implementation(libs.tuulbox.coroutines)
+                implementation(libs.kotlinx.serialization.protobuf)
             }
         }
 

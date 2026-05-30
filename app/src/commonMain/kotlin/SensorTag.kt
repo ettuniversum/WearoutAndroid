@@ -9,6 +9,9 @@ import com.juul.kable.characteristicOf
 import com.juul.kable.logs.Logging.Level.Events
 import com.juul.tuulbox.encoding.toHexString
 import com.juul.tuulbox.logging.Log
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.decodeFromByteArray
+import kotlinx.serialization.protobuf.ProtoBuf
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -51,6 +54,11 @@ val adafruitServices = listOf(
 class Adafruit(
     private val peripheral: Peripheral
 ) : Peripheral by peripheral {
+
+    @OptIn(ExperimentalSerializationApi::class)
+    val deviceData: Flow<DeviceData> = peripheral
+        .observe(heartDataCharacteristic)
+        .map { bytes -> ProtoBuf.decodeFromByteArray<DeviceData>(bytes) }
 
     val gyro: Flow<Vector3f> = peripheral
         .observe(heartDataCharacteristic)

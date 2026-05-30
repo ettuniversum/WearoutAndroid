@@ -36,7 +36,6 @@ import com.juul.krayon.element.view.ElementView
 import com.juul.krayon.element.view.ElementViewAdapter
 import com.juul.sensortag.AppTheme
 import com.juul.sensortag.features.sensor.ViewState.Disconnected
-import com.juul.sensortag.features.sensor.ViewState.Connected.GyroState.AxisState
 import com.juul.sensortag.adafruitChart
 import kotlinx.coroutines.flow.count
 import kotlinx.coroutines.flow.first

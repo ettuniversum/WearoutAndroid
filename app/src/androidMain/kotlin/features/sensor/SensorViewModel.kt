@@ -15,12 +15,11 @@ import com.juul.kable.State
 import com.juul.kable.peripheral
 import com.juul.sensortag.Sample
 import com.juul.sensortag.Adafruit
-import com.juul.sensortag.Vector3f
-import com.juul.sensortag.features.sensor.ViewState.Connected.GyroState
-import com.juul.sensortag.features.sensor.ViewState.Connected.GyroState.AxisState
+import com.juul.sensortag.DeviceData
 import com.juul.sensortag.peripheralScope
 import com.juul.tuulbox.logging.Log
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -33,6 +32,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
@@ -56,19 +56,9 @@ sealed class ViewState {
 
     data class Connected(
         val rssi: Int,
-        val gyro: GyroState
-    ) : ViewState() {
-
-        data class GyroState(
-            val x: AxisState,
-        ) {
-
-            data class AxisState(
-                val degreesPerSecond: Float,
-                val progress: Float,
-            )
-        }
-    }
+        val ppgValue: Int,
+        val batteryPercentage: Int
+    ) : ViewState()
 
     data object Disconnecting : ViewState()
 
@@ -105,14 +95,16 @@ class AdafruitViewModel(
 
     private var startTime: TimeMark? = null
 
-    val data = adafruit.gyro
+    val data = adafruit.deviceData
         // flow combination occuring with time and sensor stream
         .onStart { startTime = TimeSource.Monotonic.markNow() }
         .scan(emptyList<Sample>()) { accumulator, value ->
             val t = startTime!!.elapsedNow().inWholeMilliseconds / 1000f
-            accumulator.takeLast(50) + Sample(t, value.x)
+            val ppg = value.heartMeasurement?.ppgValue?.toFloat() ?: 0f
+            accumulator.takeLast(50) + Sample(t, ppg)
         }
         .filter { it.size > 3 }
+        .flowOn(Dispatchers.Main)
 
     init {
         viewModelScope.enableAutoReconnect()
@@ -154,23 +146,19 @@ class AdafruitViewModel(
                 // Combining RSSI and sensor data
                 State.Connected -> combine(
                     peripheral.remoteRssi(),
-                    adafruit.gyro
-                ) { rssi, gyro ->
-                    ViewState.Connected(rssi, gyroState(gyro))
+                    adafruit.deviceData
+                ) { rssi, deviceData ->
+                    ViewState.Connected(
+                        rssi,
+                        deviceData.heartMeasurement?.ppgValue ?: 0,
+                        deviceData.batteryStatus?.percentage ?: 0
+                    )
                 }
 
                 State.Disconnecting -> flowOf(ViewState.Disconnecting)
                 is State.Disconnected -> flowOf(ViewState.Disconnected)
             }
         }
-
-    private val max = Max()
-    private fun gyroState(gyro: Vector3f): GyroState {
-        val progress = gyro
-        return GyroState(
-            x = AxisState(degreesPerSecond = gyro.x, progress = progress.x),
-        )
-    }
 
     fun setPeriod(progress: Int) {
         periodProgress.set(progress)
@@ -207,16 +195,4 @@ private suspend fun Adafruit.writeGyroPeriodProgress(progress: Int) {
     val period = progress / 100f * (2550 - 100) + 100
     Log.verbose { "period = $period" }
     //writeGyroPeriod(period.toLong())
-}
-
-private fun Vector3f.progress(max: Max) = Vector3f(
-    if (max.x != 0f) x.absoluteValue / max.x else 0f,
-)
-
-private data class Max(
-    var x: Float = 0f,
-) {
-    fun maxOf(vector: Vector3f) = apply {
-        x = maxOf(x, vector.x.absoluteValue)
-    }
 }
