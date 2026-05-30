@@ -37,7 +37,7 @@ data class Sample(
 
 private val xLinePaint = Paint.Stroke(steelBlue, 1f)
 
-internal fun sensorChart(root: RootElement, width: Float, height: Float, data: List<Sample>) {
+internal fun adafruitChart(root: RootElement, width: Float, height: Float, data: List<Sample>) {
     val leftMargin = 60f
     val topMargin = 20f
     val rightMargin = 20f

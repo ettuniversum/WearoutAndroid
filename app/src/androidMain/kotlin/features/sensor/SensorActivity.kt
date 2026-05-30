@@ -37,7 +37,7 @@ import com.juul.krayon.element.view.ElementViewAdapter
 import com.juul.sensortag.AppTheme
 import com.juul.sensortag.features.sensor.ViewState.Disconnected
 import com.juul.sensortag.features.sensor.ViewState.Connected.GyroState.AxisState
-import com.juul.sensortag.sensorChart
+import com.juul.sensortag.adafruitChart
 import kotlinx.coroutines.flow.count
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.single
@@ -45,13 +45,13 @@ import kotlin.math.roundToInt
 
 
 @Exercise(Extra("macAddress", String::class))
-class SensorActivity : ComponentActivity() {
+class AdafruitActivity : ComponentActivity() {
 
-    private val viewModel by viewModels<SensorViewModel> {
+    private val viewModel by viewModels<AdafruitViewModel> {
         object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(
                 modelClass: Class<T>
-            ): T = SensorViewModel(application, extras.macAddress) as T
+            ): T = AdafruitViewModel(application, extras.macAddress) as T
         }
     }
 
@@ -81,7 +81,7 @@ class SensorActivity : ComponentActivity() {
                                     ElementView(context).apply {
                                         adapter = ElementViewAdapter(
                                             dataSource = viewModel.data,
-                                            updater = ::sensorChart,
+                                            updater = ::adafruitChart,
                                         )
                                     }
                                 })

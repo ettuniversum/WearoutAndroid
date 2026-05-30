@@ -8,7 +8,7 @@ import com.juul.sensortag.cancelChildren
 import com.juul.sensortag.childScope
 import com.juul.sensortag.features.scan.ScanStatus.Scanning
 import com.juul.sensortag.features.scan.ScanStatus.Stopped
-import com.juul.sensortag.scanner
+import com.juul.sensortag.adafruitScanner
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
@@ -43,7 +43,7 @@ class ScanViewModel(application: Application) : AndroidViewModel(application) {
 
         scanScope.launch {
             withTimeoutOrNull(SCAN_DURATION_MILLIS) {
-                scanner
+                adafruitScanner
                     .advertisements
                     .catch { cause -> _status.value = ScanStatus.Failed(cause.message ?: "Unknown error") }
                     .onCompletion { cause -> if (cause == null || cause is CancellationException) _status.value = Stopped }

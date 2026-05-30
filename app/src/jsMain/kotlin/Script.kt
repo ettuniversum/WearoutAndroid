@@ -6,7 +6,7 @@ import com.juul.kable.Filter
 import com.juul.kable.Options
 import com.juul.kable.State.Disconnected
 import com.juul.kable.requestPeripheral
-import com.juul.sensortag.services
+import com.juul.sensortag.adafruitServices
 import com.juul.tuulbox.logging.ConsoleLogger
 import com.juul.tuulbox.logging.ConstantTagGenerator
 import com.juul.tuulbox.logging.Log
@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
 class Script {
 
     init {
-        Log.tagGenerator = ConstantTagGenerator(tag = "SensorTag")
+        Log.tagGenerator = ConstantTagGenerator(tag = "Adafruit")
         Log.dispatcher.install(ConsoleLogger)
     }
 
@@ -35,22 +35,22 @@ class Script {
     val movement = Movement()
 
     private val options = Options(
-        filters = listOf(Filter.Service(uuidFrom(sensorTagUuid))),
-        optionalServices = services,
+        filters = listOf(Filter.Service(uuidFrom(adafruitUuid))),
+        optionalServices = adafruitServices,
     )
 
     fun connect(): Unit {
         disconnect() // Clean up previous connection, if any.
 
         connection = scope.launch {
-            val sensorTag = SensorTag(requestPeripheral(options).await())
-            sensorTag.establishConnection()
-            enableAutoReconnect(sensorTag)
+            val adafruit = Adafruit(requestPeripheral(options).await())
+            adafruit.establishConnection()
+            enableAutoReconnect(adafruit)
 
             try {
-                sensorTag.gyro.collect(movement::emit)
+                adafruit.gyro.collect(movement::emit)
             } finally {
-                sensorTag.disconnect()
+                adafruit.disconnect()
             }
         }.apply {
             invokeOnCompletion { cause ->
@@ -65,7 +65,7 @@ class Script {
         connection = null
     }
 
-    private suspend fun SensorTag.establishConnection(): Unit = coroutineScope {
+    private suspend fun Adafruit.establishConnection(): Unit = coroutineScope {
         status.emit("Connecting")
         connect()
         //enableGyro()
@@ -73,13 +73,13 @@ class Script {
     }
 
     private fun CoroutineScope.enableAutoReconnect(
-        sensorTag: SensorTag
-    ) = sensorTag.state.onEach { state ->
+        adafruit: Adafruit
+    ) = adafruit.state.onEach { state ->
         Log.info { "State: ${state::class.simpleName}" }
         if (state is Disconnected) {
             Log.info { "Waiting 5 seconds to reconnect..." }
             delay(5_000L)
-            sensorTag.establishConnection()
+            adafruit.establishConnection()
         }
     }.launchIn(this)
 }

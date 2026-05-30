@@ -14,7 +14,7 @@ import com.juul.kable.Peripheral
 import com.juul.kable.State
 import com.juul.kable.peripheral
 import com.juul.sensortag.Sample
-import com.juul.sensortag.SensorTag
+import com.juul.sensortag.Adafruit
 import com.juul.sensortag.Vector3f
 import com.juul.sensortag.features.sensor.ViewState.Connected.GyroState
 import com.juul.sensortag.features.sensor.ViewState.Connected.GyroState.AxisState
@@ -85,7 +85,7 @@ val ViewState.label: String
         else -> throw AssertionError()
     }
 
-class SensorViewModel(
+class AdafruitViewModel(
     application: Application,
     macAddress: String
 ) : AndroidViewModel(application) {
@@ -98,14 +98,14 @@ class SensorViewModel(
     private val peripheral = scope.peripheral(macAddress) {
         autoConnectIf(autoConnect::value)
     }
-    private val sensorTag = SensorTag(peripheral)
+    private val adafruit = Adafruit(peripheral)
     private val state = combine(Bluetooth.availability, peripheral.state, ::Pair)
 
     private val periodProgress = AtomicInteger()
 
     private var startTime: TimeMark? = null
 
-    val data = sensorTag.gyro
+    val data = adafruit.gyro
         // flow combination occuring with time and sensor stream
         .onStart { startTime = TimeSource.Monotonic.markNow() }
         .scan(emptyList<Sample>()) { accumulator, value ->
@@ -135,8 +135,8 @@ class SensorViewModel(
             try {
                 peripheral.connect()
                 autoConnect.value = true
-                //sensorTag.enableGyro()
-                //sensorTag.writeGyroPeriodProgress(periodProgress.get())
+                //adafruit.enableGyro()
+                //adafruit.writeGyroPeriodProgress(periodProgress.get())
             } catch (e: ConnectionLostException) {
                 autoConnect.value = false
                 Log.warn(e) { "Connection attempt failed" }
@@ -154,7 +154,7 @@ class SensorViewModel(
                 // Combining RSSI and sensor data
                 State.Connected -> combine(
                     peripheral.remoteRssi(),
-                    sensorTag.gyro
+                    adafruit.gyro
                 ) { rssi, gyro ->
                     ViewState.Connected(rssi, gyroState(gyro))
                 }
@@ -175,7 +175,7 @@ class SensorViewModel(
     fun setPeriod(progress: Int) {
         periodProgress.set(progress)
         viewModelScope.launch {
-            //sensorTag.writeGyroPeriodProgress(progress)
+            //adafruit.writeGyroPeriodProgress(progress)
         }
     }
 
@@ -203,7 +203,7 @@ private fun Peripheral.remoteRssi() = flow {
 }
 
 
-private suspend fun SensorTag.writeGyroPeriodProgress(progress: Int) {
+private suspend fun Adafruit.writeGyroPeriodProgress(progress: Int) {
     val period = progress / 100f * (2550 - 100) + 100
     Log.verbose { "period = $period" }
     //writeGyroPeriod(period.toLong())
