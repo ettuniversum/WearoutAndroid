@@ -26,6 +26,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
@@ -34,6 +35,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.scan
@@ -91,6 +93,13 @@ class AdafruitViewModel(
     private val adafruit = Adafruit(peripheral)
     private val state = combine(Bluetooth.availability, peripheral.state, ::Pair)
 
+    private val hrEstimator = HeartRateEstimator(application)
+
+    private val _estimatedBpm = MutableStateFlow<Float?>(null)
+    val estimatedBpm = _estimatedBpm.asStateFlow()
+
+    private val ppgBuffer = mutableListOf<Float>()
+
     private val periodProgress = AtomicInteger()
 
     private var startTime: TimeMark? = null
@@ -108,6 +117,37 @@ class AdafruitViewModel(
 
     init {
         viewModelScope.enableAutoReconnect()
+        observePpgForInference()
+    }
+
+    private fun observePpgForInference() {
+        adafruit.deviceData
+            .map { it.heartMeasurement?.ppgValue?.toFloat() ?: 0f }
+            .onEach { ppg ->
+                ppgBuffer.add(ppg)
+                if (ppgBuffer.size >= 1000) {
+                    val window = ppgBuffer.take(1000).toFloatArray()
+                    // Remove first 500 samples for 50% overlap or just clear for non-overlapping
+                    // The prompt says "collect 10-second segments", implying non-overlapping or specific windowing.
+                    // Let's do a simple sliding window or non-overlapping for now.
+                    // For simplicity, let's clear the buffer to collect a fresh 10s.
+                    ppgBuffer.clear()
+
+                    val normalizedWindow = zScoreNormalize(window)
+                    _estimatedBpm.value = hrEstimator.estimateBPM(normalizedWindow)
+                }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    private fun zScoreNormalize(data: FloatArray): FloatArray {
+        val mean = data.average().toFloat()
+        val std = Math.sqrt(data.map { Math.pow((it - mean).toDouble(), 2.0) }.sum() / data.size).toFloat()
+        return if (std != 0f) {
+            data.map { (it - mean) / std }.toFloatArray()
+        } else {
+            data
+        }
     }
 
     private fun CoroutineScope.enableAutoReconnect() {
@@ -168,6 +208,7 @@ class AdafruitViewModel(
     }
 
     override fun onCleared() {
+        hrEstimator.close()
         peripheralScope.launch {
             viewModelScope.coroutineContext.job.join()
             peripheral.disconnect()

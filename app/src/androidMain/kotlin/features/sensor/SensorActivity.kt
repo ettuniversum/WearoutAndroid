@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -70,8 +71,18 @@ class AdafruitActivity : ComponentActivity() {
                     ) {
                         Column(Modifier.padding(20.dp)) {
                             val viewState = viewModel.viewState.collectAsState(Disconnected).value
+                            val estimatedBpm = viewModel.estimatedBpm.collectAsState().value
 
-                            Text(viewState.label, fontSize = 18.sp)
+                            Row {
+                                Text(viewState.label, fontSize = 18.sp)
+                                if (viewState is ViewState.Connected) {
+                                    Spacer(Modifier.weight(1f))
+                                    Text("Battery: ${viewState.batteryPercentage}%", fontSize = 18.sp)
+                                }
+                            }
+                            if (estimatedBpm != null) {
+                                Text("Estimated HR: ${estimatedBpm.roundToInt()} BPM", fontSize = 18.sp)
+                            }
                             Spacer(Modifier.size(10.dp))
 
                             AndroidView(

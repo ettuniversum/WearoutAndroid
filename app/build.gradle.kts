@@ -48,6 +48,7 @@ kotlin {
                 implementation(libs.bundles.accompanist)
                 implementation(libs.exercise.annotations)
                 implementation(libs.bundles.krayon)
+                implementation(libs.tensorflow.lite)
             }
         }
 
@@ -79,6 +80,10 @@ android {
     }
 
     namespace = "com.juul.sensortag"
+
+    androidResources {
+        noCompress += "tflite"
+    }
 
     buildFeatures {
         compose = true
