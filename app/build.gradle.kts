@@ -48,7 +48,8 @@ kotlin {
                 implementation(libs.bundles.accompanist)
                 implementation(libs.exercise.annotations)
                 implementation(libs.bundles.krayon)
-                implementation(libs.tensorflow.lite)
+                implementation(libs.play.services.tflite.java)
+                implementation(libs.play.services.tflite.binaries)
             }
         }
 

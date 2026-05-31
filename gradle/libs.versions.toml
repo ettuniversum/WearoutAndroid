@@ -15,6 +15,8 @@ krayon = "0.16.0"
 ksp = "1.9.10-1.0.13"
 tuulbox = "7.0.0"
 tensorflow-lite = "2.14.0"
+play-services-tflite-java = "16.1.0"
+play-services-tflite-binaries = "16.1.0"
 
 [libraries]
 accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanist" }
@@ -38,6 +40,8 @@ tuulbox-coroutines = { module = "com.juul.tuulbox:coroutines", version.ref = "tu
 tuulbox-encoding = { module = "com.juul.tuulbox:encoding", version.ref = "tuulbox" }
 tuulbox-logging = { module = "com.juul.tuulbox:logging", version.ref = "tuulbox" }
 tensorflow-lite = { module = "org.tensorflow:tensorflow-lite", version.ref = "tensorflow-lite" }
+play-services-tflite-java = { module = "com.google.android.gms:play-services-tflite-java", version.ref = "play-services-tflite-java" }
+play-services-tflite-binaries = { module = "com.google.android.gms:play-services-tflite-binaries", version.ref = "play-services-tflite-binaries" }
 
 [bundles]
 accompanist = [

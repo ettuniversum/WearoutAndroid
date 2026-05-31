@@ -133,8 +133,12 @@ class AdafruitViewModel(
                     // For simplicity, let's clear the buffer to collect a fresh 10s.
                     ppgBuffer.clear()
 
-                    val normalizedWindow = zScoreNormalize(window)
-                    _estimatedBpm.value = hrEstimator.estimateBPM(normalizedWindow)
+                    if (hrEstimator.isInitialized) {
+                        val normalizedWindow = zScoreNormalize(window)
+                        _estimatedBpm.value = hrEstimator.estimateBPM(normalizedWindow)
+                    } else {
+                        Log.info { "Waiting for TFLite to initialize before inference..." }
+                    }
                 }
             }
             .launchIn(viewModelScope)

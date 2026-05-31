@@ -2,12 +2,16 @@ package com.juul.sensortag.features.sensor
 
 import android.content.Context
 import android.content.res.AssetFileDescriptor
+import com.google.android.gms.tflite.java.TfLite
 import org.tensorflow.lite.Interpreter
 import java.io.FileInputStream
 import java.nio.channels.FileChannel
+import com.juul.tuulbox.logging.Log
 
 class HeartRateEstimator(context: Context) {
     private var interpreter: Interpreter? = null
+    var isInitialized = false
+        private set
 
     companion object {
         private const val MODEL_NAME = "resnet10_5gamers_quant.tflite"
@@ -15,11 +19,20 @@ class HeartRateEstimator(context: Context) {
     }
 
     init {
-        val options = Interpreter.Options().apply {
-            // Optional: Use GPU delegate or multiple threads if supported
-            setNumThreads(2)
+        TfLite.initialize(context).addOnSuccessListener {
+            try {
+                val options = Interpreter.Options().apply {
+                    setNumThreads(2)
+                }
+                interpreter = Interpreter(loadModelFile(context, MODEL_NAME), options)
+                isInitialized = true
+                Log.info { "TFLite Interpreter initialized successfully via Play Services" }
+            } catch (e: Exception) {
+                Log.error(e) { "Failed to initialize TFLite Interpreter" }
+            }
+        }.addOnFailureListener { e ->
+            Log.error(e) { "Failed to initialize TfLite via Play Services" }
         }
-        interpreter = Interpreter(loadModelFile(context, MODEL_NAME), options)
     }
 
     /**
@@ -41,24 +54,25 @@ class HeartRateEstimator(context: Context) {
      * @return Estimated BPM (float).
      */
     fun estimateBPM(ppgWindow: FloatArray): Float {
+        val interp = interpreter
+        if (interp == null || !isInitialized) {
+            Log.warn { "Interpreter not ready for inference" }
+            return 0f
+        }
+
         if (ppgWindow.size != INPUT_LENGTH) {
-            throw IllegalArgumentException("Input signal must have exactly $INPUT_LENGTH samples (10 seconds at 100Hz).")
+            throw IllegalArgumentException("Input signal must have exactly $INPUT_LENGTH samples.")
         }
 
         // TFLite expects shape: [batch_size, sequence_length, channels] -> [1, 1000, 1]
-        // Create 3D input buffer: 1 batch, 1000 time steps, 1 channel
         val inputBuffer = Array(1) { Array(INPUT_LENGTH) { FloatArray(1) } }
         for (i in 0 until INPUT_LENGTH) {
             inputBuffer[0][i][0] = ppgWindow[i]
         }
 
-        // TFLite output expects shape: [batch_size, output_features] -> [1, 1]
         val outputBuffer = Array(1) { FloatArray(1) }
+        interp.run(inputBuffer, outputBuffer)
 
-        // Run inference
-        interpreter?.run(inputBuffer, outputBuffer)
-
-        // Return regressed BPM
         return outputBuffer[0][0]
     }
 
@@ -68,5 +82,6 @@ class HeartRateEstimator(context: Context) {
     fun close() {
         interpreter?.close()
         interpreter = null
+        isInitialized = false
     }
 }
