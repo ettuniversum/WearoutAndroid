@@ -2,7 +2,6 @@ package com.juul.sensortag.features.sensor
 
 import android.content.Context
 import android.content.res.AssetFileDescriptor
-import com.google.android.gms.tflite.java.TfLite
 import org.tensorflow.lite.Interpreter
 import java.io.FileInputStream
 import java.nio.channels.FileChannel
@@ -19,19 +18,15 @@ class HeartRateEstimator(context: Context) {
     }
 
     init {
-        TfLite.initialize(context).addOnSuccessListener {
-            try {
-                val options = Interpreter.Options().apply {
-                    setNumThreads(2)
-                }
-                interpreter = Interpreter(loadModelFile(context, MODEL_NAME), options)
-                isInitialized = true
-                Log.info { "TFLite Interpreter initialized successfully via Play Services" }
-            } catch (e: Exception) {
-                Log.error(e) { "Failed to initialize TFLite Interpreter" }
+        try {
+            val options = Interpreter.Options().apply {
+                setNumThreads(2)
             }
-        }.addOnFailureListener { e ->
-            Log.error(e) { "Failed to initialize TfLite via Play Services" }
+            interpreter = Interpreter(loadModelFile(context, MODEL_NAME), options)
+            isInitialized = true
+            Log.info { "LiteRT Interpreter initialized successfully" }
+        } catch (e: Exception) {
+            Log.error(e) { "Failed to initialize LiteRT Interpreter" }
         }
     }
 

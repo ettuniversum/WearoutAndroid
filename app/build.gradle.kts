@@ -3,6 +3,7 @@ plugins {
     kotlin("multiplatform")
     id("com.google.devtools.ksp")
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.kotlin.compose)
 }
 
 kotlin {
@@ -48,8 +49,7 @@ kotlin {
                 implementation(libs.bundles.accompanist)
                 implementation(libs.exercise.annotations)
                 implementation(libs.bundles.krayon)
-                implementation(libs.play.services.tflite.java)
-                implementation(libs.play.services.tflite.binaries)
+                implementation(libs.litert)
             }
         }
 
@@ -90,16 +90,15 @@ android {
         compose = true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = libs.versions.compose.compiler.get()
-    }
-
     lint {
         abortOnError = false
     }
 
     packaging {
         resources.excludes.add("/META-INF/versions/*/previous-compilation-data.bin")
+        jniLibs {
+            useLegacyPackaging = false
+        }
     }
 }
 

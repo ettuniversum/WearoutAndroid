@@ -1,22 +1,22 @@
 [versions]
 accompanist = "0.32.0"
-agp = "8.13.2"
-android-compile = "34"
-android-min = "21"
-android-target = "31"
+agp = "8.6.1"
+android-compile = "35"
+android-min = "23"
+android-target = "35"
 androidx-lifecycle = "2.6.2"
 compose = "1.5.4"
 compose-compiler = "1.5.4"
 exercise = "0.11.1"
 kable = "0.28.0-rc"
-kotlin = "1.9.20"
+kotlin = "2.1.0"
 kotlinx-serialization = "1.6.0"
 krayon = "0.16.0"
-ksp = "1.9.10-1.0.13"
+ksp = "2.1.0-1.0.29"
 tuulbox = "7.0.0"
 tensorflow-lite = "2.14.0"
-play-services-tflite-java = "16.1.0"
-play-services-tflite-binaries = "16.1.0"
+tensorflow-lite-api-classes = "2.14.0"
+litert = "2.1.0"
 
 [libraries]
 accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanist" }
@@ -40,8 +40,8 @@ tuulbox-coroutines = { module = "com.juul.tuulbox:coroutines", version.ref = "tu
 tuulbox-encoding = { module = "com.juul.tuulbox:encoding", version.ref = "tuulbox" }
 tuulbox-logging = { module = "com.juul.tuulbox:logging", version.ref = "tuulbox" }
 tensorflow-lite = { module = "org.tensorflow:tensorflow-lite", version.ref = "tensorflow-lite" }
-play-services-tflite-java = { module = "com.google.android.gms:play-services-tflite-java", version.ref = "play-services-tflite-java" }
-play-services-tflite-binaries = { module = "com.google.android.gms:play-services-tflite-binaries", version.ref = "play-services-tflite-binaries" }
+litert = { module = "com.google.ai.edge.litert:litert", version.ref = "litert" }
+tflite-api-lib = { module = "org.tensorflow:tensorflow-lite-api", version.ref = "tensorflow-lite-api-classes" }
 
 [bundles]
 accompanist = [
@@ -67,3 +67,4 @@ android-application = { id = "com.android.library", version.ref = "agp" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
