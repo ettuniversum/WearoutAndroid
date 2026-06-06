@@ -84,6 +84,7 @@ android {
 
     androidResources {
         noCompress += "tflite"
+        noCompress += "litert"
     }
 
     buildFeatures {

@@ -93,7 +93,7 @@ class AdafruitViewModel(
     private val adafruit = Adafruit(peripheral)
     private val state = combine(Bluetooth.availability, peripheral.state, ::Pair)
 
-    private val hrEstimator = HeartRateEstimator(application)
+    private val hrEstimator by lazy { HeartRateEstimator.getInstance(application) }
 
     private val _estimatedBpm = MutableStateFlow<Float?>(null)
     val estimatedBpm = _estimatedBpm.asStateFlow()
@@ -125,19 +125,21 @@ class AdafruitViewModel(
             .map { it.heartMeasurement?.ppgValue?.toFloat() ?: 0f }
             .onEach { ppg ->
                 ppgBuffer.add(ppg)
-                if (ppgBuffer.size >= 1000) {
-                    val window = ppgBuffer.take(1000).toFloatArray()
-                    // Remove first 500 samples for 50% overlap or just clear for non-overlapping
-                    // The prompt says "collect 10-second segments", implying non-overlapping or specific windowing.
-                    // Let's do a simple sliding window or non-overlapping for now.
-                    // For simplicity, let's clear the buffer to collect a fresh 10s.
+                if (ppgBuffer.size % 100 == 0) {
+                    Log.verbose { "PPG Buffer accumulation: ${ppgBuffer.size}/500" }
+                }
+                if (ppgBuffer.size >= 500) {
+                    val window = ppgBuffer.take(500).toFloatArray()
                     ppgBuffer.clear()
 
-                    if (hrEstimator.isInitialized) {
-                        val normalizedWindow = zScoreNormalize(window)
-                        _estimatedBpm.value = hrEstimator.estimateBPM(normalizedWindow)
-                    } else {
-                        Log.info { "Waiting for TFLite to initialize before inference..." }
+                    viewModelScope.launch(Dispatchers.Default) {
+                        if (hrEstimator.isInitialized) {
+                            val normalizedWindow = zScoreNormalize(window)
+                            val bpm = hrEstimator.estimateBPM(normalizedWindow)
+                            _estimatedBpm.value = bpm
+                        } else {
+                            Log.info { "Inference skipped: LiteRT Interpreter not yet initialized" }
+                        }
                     }
                 }
             }
