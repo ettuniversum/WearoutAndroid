@@ -46,7 +46,7 @@ class HeartRateEstimator private constructor(context: Context) {
             // Stability configuration
             val options = Interpreter.Options().apply {
                 setNumThreads(1)
-                setUseXNNPACK(true) // Standard for modern TFLite
+                setUseXNNPACK(false) // Disabled to avoid "failed to create XNNPACK runtime" on some devices
             }
 
             val interp = Interpreter(modelBuffer, options)

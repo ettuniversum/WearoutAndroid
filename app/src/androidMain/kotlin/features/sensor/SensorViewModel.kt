@@ -130,7 +130,7 @@ class AdafruitViewModel(
                     Log.verbose { "PPG Buffer accumulation: ${ppgBuffer.size}/${INPUT_LENGTH}" }
                 }
                 if (ppgBuffer.size >= INPUT_LENGTH) {
-                    ppgBuffer.take(INPUT_LENGTH).toFloatArray()
+                    val rawWindow = ppgBuffer.take(1000).toFloatArray()
                     ppgBuffer.clear()
                     val b = floatArrayOf(
                         0.00011138107559506856f,
@@ -154,7 +154,6 @@ class AdafruitViewModel(
                         -4.8006819173678315f,
                         0.5621314601382241f
                     )
-                    val rawWindow = ppgBuffer.take(1000).toFloatArray()
                     // Remove baseline wander & high-frequency noise (Zero-Phase)
                     val filteredWindow = zeroPhaseFilter(rawWindow, b, a)
 
