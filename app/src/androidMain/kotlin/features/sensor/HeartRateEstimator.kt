@@ -43,21 +43,17 @@ class HeartRateEstimator private constructor(context: Context) {
     init {
         Log.info { "Initializing TFLite Interpreter Singleton with model: $MODEL_NAME" }
         try {
-            // Stability configuration
+            Log.info { "Creating Interpreter instance with explicit options (XNNPACK disabled)..." }
             val options = Interpreter.Options().apply {
+                setUseXNNPACK(false)
                 setNumThreads(1)
-                setUseXNNPACK(false) // Disabled to avoid "failed to create XNNPACK runtime" on some devices
             }
-
             val interp = Interpreter(modelBuffer, options)
-
-            // If the model has fixed dimensions, resizeInput might not be needed.
-            // But if it's dynamic, we must call it before allocateTensors.
-            // We'll log the input shape to debug if needed.
-            Log.info { "Model input count: ${interp.inputTensorCount}" }
+            Log.info { "Interpreter instance created. Input count: ${interp.inputTensorCount}" }
             
-            // interp.resizeInput(0, intArrayOf(1, INPUT_LENGTH, 1))
+            Log.info { "Allocating tensors..." }
             interp.allocateTensors()
+            Log.info { "Tensors allocated." }
 
             interpreter = interp
             isInitialized = true
