@@ -3,24 +3,23 @@ package com.juul.sensortag.features.sensor
 import android.content.Context
 import com.juul.tuulbox.logging.Log
 import org.tensorflow.lite.Interpreter
-import java.io.FileInputStream
+import org.tensorflow.lite.support.common.FileUtil
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.nio.MappedByteBuffer
-import java.nio.channels.FileChannel
 
 class HeartRateEstimator private constructor(context: Context) {
     // Keep a strong reference to the model buffer to prevent Garbage Collection.
-    // If this is local to 'init', the native memory becomes invalid and causes SIGABRT.
-    private val modelBuffer: MappedByteBuffer = loadModelFile(context, MODEL_NAME)
+    // FileUtil.loadMappedFile is the robust way to load from assets.
+    private val modelBuffer: MappedByteBuffer = FileUtil.loadMappedFile(context, MODEL_NAME)
 
     private var interpreter: Interpreter? = null
     var isInitialized = false
         private set
 
     // Pre-allocate direct buffers for stability and performance.
-    private val inputBuffer: FloatBuffer = ByteBuffer.allocateDirect(1000 * 4).apply {
+    private val inputBuffer: FloatBuffer = ByteBuffer.allocateDirect(INPUT_LENGTH * 4).apply {
         order(ByteOrder.nativeOrder())
     }.asFloatBuffer()
     private val outputBuffer: FloatBuffer = ByteBuffer.allocateDirect(1 * 4).apply {
@@ -42,27 +41,29 @@ class HeartRateEstimator private constructor(context: Context) {
     }
 
     init {
-        Log.info { "Initializing LiteRT Interpreter Singleton with model: $MODEL_NAME" }
+        Log.info { "Initializing TFLite Interpreter Singleton with model: $MODEL_NAME" }
         try {
-            // Maximum stability configuration
+            // Stability configuration
             val options = Interpreter.Options().apply {
-                setUseXNNPACK(false)
                 setNumThreads(1)
+                setUseXNNPACK(true) // Standard for modern TFLite
             }
 
-            // The interpreter uses the class-level 'modelBuffer' strong reference
             val interp = Interpreter(modelBuffer, options)
 
-            // Explicitly define input shape [batch: 1, length: 1000, channels: 1]
-            interp.resizeInput(0, intArrayOf(1, INPUT_LENGTH, 1))
+            // If the model has fixed dimensions, resizeInput might not be needed.
+            // But if it's dynamic, we must call it before allocateTensors.
+            // We'll log the input shape to debug if needed.
+            Log.info { "Model input count: ${interp.inputTensorCount}" }
+            
+            // interp.resizeInput(0, intArrayOf(1, INPUT_LENGTH, 1))
             interp.allocateTensors()
 
             interpreter = interp
             isInitialized = true
-            Log.info { "LiteRT Interpreter initialized successfully with Strong Reference and Direct Buffers" }
+            Log.info { "TFLite Interpreter initialized successfully" }
         } catch (t: Throwable) {
-            Log.error(t) { "Failed to initialize LiteRT Interpreter: ${t.message}" }
-            t.printStackTrace()
+            Log.error(t) { "Failed to initialize TFLite Interpreter: ${t.message}" }
         }
     }
 
@@ -80,7 +81,7 @@ class HeartRateEstimator private constructor(context: Context) {
             // Load the 1D FloatArray directly into the flat memory buffer
             inputBuffer.rewind()
             inputBuffer.put(normalizedWindow)
-            inputBuffer.rewind() // Always rewind before feeding to the model!
+            inputBuffer.rewind()
 
             // Prepare output buffer
             outputBuffer.rewind()
@@ -95,17 +96,6 @@ class HeartRateEstimator private constructor(context: Context) {
         } catch (e: Exception) {
             Log.error(e) { "Inference failed: ${e.message}" }
             return 0f
-        }
-    }
-
-    private fun loadModelFile(context: Context, modelName: String): MappedByteBuffer {
-        context.assets.openFd(modelName).use { fileDescriptor ->
-            FileInputStream(fileDescriptor.fileDescriptor).use { inputStream ->
-                val fileChannel = inputStream.channel
-                val startOffset = fileDescriptor.startOffset
-                val declaredLength = fileDescriptor.declaredLength
-                return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength)
-            }
         }
     }
 

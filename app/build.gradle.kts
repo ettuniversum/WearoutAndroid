@@ -50,7 +50,8 @@ kotlin {
                 implementation(libs.bundles.accompanist)
                 implementation(libs.exercise.annotations)
                 implementation(libs.bundles.krayon)
-                implementation(libs.litert)
+                implementation(libs.tensorflow.lite)
+                implementation(libs.tensorflow.lite.support)
             }
         }
 
