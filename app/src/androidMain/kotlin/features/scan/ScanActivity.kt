@@ -65,7 +65,7 @@ import com.juul.sensortag.enableBluetooth
 import com.juul.sensortag.features.scan.ScanStatus.Failed
 import com.juul.sensortag.features.scan.ScanStatus.Scanning
 import com.juul.sensortag.features.scan.ScanStatus.Stopped
-import com.juul.sensortag.features.sensor.AdafruitActivityIntent
+import com.juul.sensortag.features.sensor.SensorActivityIntent
 import com.juul.sensortag.icons.BluetoothDisabled
 import com.juul.sensortag.icons.LocationDisabled
 import com.juul.sensortag.openAppDetails
@@ -153,7 +153,7 @@ class ScanActivity : ComponentActivity() {
 
     private fun onAdvertisementClicked(advertisement: AndroidAdvertisement) {
         viewModel.stop()
-        val intent = AdafruitActivityIntent(
+        val intent = SensorActivityIntent(
             context = this@ScanActivity,
             macAddress = advertisement.address
         )

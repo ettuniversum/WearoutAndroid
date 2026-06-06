@@ -45,13 +45,13 @@ import kotlin.math.roundToInt
 
 
 @Exercise(Extra("macAddress", String::class))
-class AdafruitActivity : ComponentActivity() {
+class SensorActivity : ComponentActivity() {
 
     private val viewModel by viewModels<AdafruitViewModel> {
         object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(
                 modelClass: Class<T>
-            ): T = AdafruitViewModel(application, extras.macAddress) as T
+            ): T = AdafruitViewModel(application, this@SensorActivity.extras.macAddress) as T
         }
     }
 

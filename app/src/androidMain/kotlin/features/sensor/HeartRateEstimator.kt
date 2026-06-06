@@ -3,7 +3,6 @@ package com.juul.sensortag.features.sensor
 import android.content.Context
 import com.juul.tuulbox.logging.Log
 import org.tensorflow.lite.Interpreter
-import org.tensorflow.lite.support.common.FileUtil
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -14,7 +13,6 @@ import java.nio.channels.FileChannel
 class HeartRateEstimator private constructor(context: Context) {
     // Keep a strong reference to the model buffer to prevent Garbage Collection.
     // If this is local to 'init', the native memory becomes invalid and causes SIGABRT.
-    private val tfliteModelBuffer: MappedByteBuffer = FileUtil.loadMappedFile(context, MODEL_NAME)
     private val modelBuffer: MappedByteBuffer = loadModelFile(context, MODEL_NAME)
 
     private var interpreter: Interpreter? = null

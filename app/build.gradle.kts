@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     kotlin("multiplatform")
     id("com.google.devtools.ksp")
+    id("kotlin-parcelize")
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kotlin.compose)
 }
