@@ -14,10 +14,13 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.Button
 import androidx.compose.material.CircularProgressIndicator
@@ -80,7 +83,11 @@ class ScanActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             AppTheme {
-                Column(Modifier.background(color = MaterialTheme.colors.background)) {
+                Column(
+                    Modifier
+                        .background(color = MaterialTheme.colors.background)
+                        .windowInsetsPadding(WindowInsets.safeDrawing)
+                ) {
                     val bluetooth = Bluetooth.availability.collectAsState(initial = null).value
                     AppBar(viewModel, bluetooth)
                     Box(Modifier.weight(1f)) {
