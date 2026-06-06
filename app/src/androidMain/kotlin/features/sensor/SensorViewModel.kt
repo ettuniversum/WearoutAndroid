@@ -13,9 +13,8 @@ import com.juul.kable.NotReadyException
 import com.juul.kable.Peripheral
 import com.juul.kable.State
 import com.juul.kable.peripheral
-import com.juul.sensortag.Sample
 import com.juul.sensortag.Adafruit
-import com.juul.sensortag.DeviceData
+import com.juul.sensortag.Sample
 import com.juul.sensortag.peripheralScope
 import com.juul.tuulbox.logging.Log
 import kotlinx.coroutines.CoroutineScope
@@ -42,7 +41,6 @@ import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.math.absoluteValue
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 import kotlin.time.TimeMark
@@ -85,7 +83,8 @@ class AdafruitViewModel(
     private val autoConnect = MutableStateFlow(false)
 
     // Intermediary scope needed until https://github.com/JuulLabs/kable/issues/577 is resolved.
-    private val scope = CoroutineScope(peripheralScope.coroutineContext + Job(peripheralScope.coroutineContext.job))
+    private val scope =
+        CoroutineScope(peripheralScope.coroutineContext + Job(peripheralScope.coroutineContext.job))
 
     private val peripheral = scope.peripheral(macAddress) {
         autoConnectIf(autoConnect::value)
@@ -93,17 +92,17 @@ class AdafruitViewModel(
     private val adafruit = Adafruit(peripheral)
     private val state = combine(Bluetooth.availability, peripheral.state, ::Pair)
 
-    private val hrEstimator by lazy { HeartRateEstimator.getInstance(application) }
 
     private val _estimatedBpm = MutableStateFlow<Float?>(null)
     val estimatedBpm = _estimatedBpm.asStateFlow()
-
+    private val hrEstimator: HeartRateEstimator
     private val ppgBuffer = mutableListOf<Float>()
 
     private val periodProgress = AtomicInteger()
 
     private var startTime: TimeMark? = null
 
+    val INPUT_LENGTH = 1000
     val data = adafruit.deviceData
         // flow combination occuring with time and sensor stream
         .onStart { startTime = TimeSource.Monotonic.markNow() }
@@ -116,8 +115,10 @@ class AdafruitViewModel(
         .flowOn(Dispatchers.Main)
 
     init {
+        hrEstimator = HeartRateEstimator.getInstance(application)
         viewModelScope.enableAutoReconnect()
         observePpgForInference()
+
     }
 
     private fun observePpgForInference() {
@@ -126,34 +127,169 @@ class AdafruitViewModel(
             .onEach { ppg ->
                 ppgBuffer.add(ppg)
                 if (ppgBuffer.size % 100 == 0) {
-                    Log.verbose { "PPG Buffer accumulation: ${ppgBuffer.size}/500" }
+                    Log.verbose { "PPG Buffer accumulation: ${ppgBuffer.size}/${INPUT_LENGTH}" }
                 }
-                if (ppgBuffer.size >= 500) {
-                    val window = ppgBuffer.take(500).toFloatArray()
+                if (ppgBuffer.size >= INPUT_LENGTH) {
+                    ppgBuffer.take(INPUT_LENGTH).toFloatArray()
                     ppgBuffer.clear()
+                    val b = floatArrayOf(
+                        0.00011138107559506856f,
+                        0.0f,
+                        -0.00044552430238027423f,
+                        0.0f,
+                        0.0006682864535704114f,
+                        0.0f,
+                        -0.00044552430238027423f,
+                        0.0f,
+                        0.00011138107559506856f
+                    )
+                    val a = floatArrayOf(
+                        1.0f,
+                        -7.396479155436211f,
+                        23.97658851843773f,
+                        -44.49346061969696f,
+                        51.69993948976599f,
+                        -38.519874193085826f,
+                        17.9718364201985f,
+                        -4.8006819173678315f,
+                        0.5621314601382241f
+                    )
+                    val rawWindow = ppgBuffer.take(1000).toFloatArray()
+                    // Remove baseline wander & high-frequency noise (Zero-Phase)
+                    val filteredWindow = zeroPhaseFilter(rawWindow, b, a)
 
-                    viewModelScope.launch(Dispatchers.Default) {
-                        if (hrEstimator.isInitialized) {
-                            val normalizedWindow = zScoreNormalize(window)
-                            val bpm = hrEstimator.estimateBPM(normalizedWindow)
-                            _estimatedBpm.value = bpm
-                        } else {
-                            Log.info { "Inference skipped: LiteRT Interpreter not yet initialized" }
-                        }
-                    }
+                    // Center the clean peaks
+                    val normalizedWindow = zScoreNormalize(filteredWindow)
+
+                    // Safe C++ Tensor Inference
+                    val bpm = hrEstimator.estimateBPM(normalizedWindow)
+                    _estimatedBpm.value = bpm
+//                    viewModelScope.launch(Dispatchers.Default) {
+//                        if (hrEstimator.isInitialized) {
+//                            val b = floatArrayOf(
+//                                0.00011138107559506856f,
+//                                0.0f,
+//                                -0.00044552430238027423f,
+//                                0.0f,
+//                                0.0006682864535704114f,
+//                                0.0f,
+//                                -0.00044552430238027423f,
+//                                0.0f,
+//                                0.00011138107559506856f
+//                            )
+//                            val a = floatArrayOf(
+//                                1.0f,
+//                                -7.396479155436211f,
+//                                23.97658851843773f,
+//                                -44.49346061969696f,
+//                                51.69993948976599f,
+//                                -38.519874193085826f,
+//                                17.9718364201985f,
+//                                -4.8006819173678315f,
+//                                0.5621314601382241f
+//                            )
+//                            val rawWindow = ppgBuffer.take(1000).toFloatArray()
+//                            // Remove baseline wander & high-frequency noise (Zero-Phase)
+//                            val filteredWindow = zeroPhaseFilter(rawWindow, b, a)
+//
+//                            // Center the clean peaks
+//                            val normalizedWindow = zScoreNormalize(filteredWindow)
+//
+//                            // Safe C++ Tensor Inference
+//                            val bpm = hrEstimator.estimateBPM(normalizedWindow)
+//                            _estimatedBpm.value = bpm
+//                        } else {
+//                            Log.info { "Inference skipped: LiteRT Interpreter not yet initialized" }
+//                        }
+//                    }
                 }
             }
             .launchIn(viewModelScope)
     }
 
-    private fun zScoreNormalize(data: FloatArray): FloatArray {
-        val mean = data.average().toFloat()
-        val std = Math.sqrt(data.map { Math.pow((it - mean).toDouble(), 2.0) }.sum() / data.size).toFloat()
-        return if (std != 0f) {
-            data.map { (it - mean) / std }.toFloatArray()
-        } else {
-            data
+
+    /**
+     * Core IIR Difference Equation (Equivalent to Python's scipy.signal.lfilter)
+     * Uses strictly primitive math and zero internal object allocations.
+     */
+    fun applyIIRFilter(input: FloatArray, b: FloatArray, a: FloatArray): FloatArray {
+        val output = FloatArray(input.size)
+        val a0 = a[0]
+        val bLen = b.size
+        val aLen = a.size
+
+        for (i in input.indices) {
+            var sum = 0f
+
+            // Feedforward calculation (b coefficients * past inputs)
+            for (j in 0 until bLen) {
+                if (i >= j) {
+                    sum += b[j] * input[i - j]
+                }
+            }
+
+            // Feedback calculation (a coefficients * past outputs)
+            for (j in 1 until aLen) {
+                if (i >= j) {
+                    sum -= a[j] * output[i - j]
+                }
+            }
+
+            output[i] = sum / a0
         }
+
+        return output
+    }
+
+    /**
+     * Zero-Phase Forward-Backward Filter (Equivalent to Python's scipy.signal.filtfilt)
+     * Uses in-place array reversals to prevent massive GC sweeps.
+     */
+    fun zeroPhaseFilter(input: FloatArray, b: FloatArray, a: FloatArray): FloatArray {
+        // 1. Forward Pass
+        val forwardOutput = applyIIRFilter(input, b, a)
+
+        // 2. Reverse the array IN-PLACE (Generates zero garbage)
+        forwardOutput.reverse()
+
+        // 3. Backward Pass
+        val backwardOutput = applyIIRFilter(forwardOutput, b, a)
+
+        // 4. Reverse the array IN-PLACE back to normal time
+        backwardOutput.reverse()
+
+        return backwardOutput
+    }
+
+    fun zScoreNormalize(window: FloatArray): FloatArray {
+        if (window.isEmpty()) return window
+
+        // 1. Calculate Mean (No boxing)
+        var sum = 0f
+        for (value in window) {
+            sum += value
+        }
+        val mean = sum / window.size
+
+        // 2. Calculate Standard Deviation (No map, no Math.pow)
+        var varianceSum = 0f
+        for (value in window) {
+            val diff = value - mean
+            varianceSum += diff * diff // Much faster than Math.pow
+        }
+        val variance = varianceSum / window.size
+        val stdDev = kotlin.math.sqrt(variance.toDouble()).toFloat()
+
+        // 3. Safe Epsilon
+        val safeStdDev = if (stdDev > 0f) stdDev else 1e-8f
+
+        // 4. Output Array (Allocated exactly once, as primitives)
+        val normalizedWindow = FloatArray(window.size)
+        for (i in window.indices) {
+            normalizedWindow[i] = (window[i] - mean) / safeStdDev
+        }
+
+        return normalizedWindow
     }
 
     private fun CoroutineScope.enableAutoReconnect() {

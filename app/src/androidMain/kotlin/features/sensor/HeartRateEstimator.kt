@@ -3,24 +3,31 @@ package com.juul.sensortag.features.sensor
 import android.content.Context
 import com.juul.tuulbox.logging.Log
 import org.tensorflow.lite.Interpreter
+import org.tensorflow.lite.support.common.FileUtil
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.nio.FloatBuffer
+import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
 
 class HeartRateEstimator private constructor(context: Context) {
+    // Keep a strong reference to the model buffer to prevent Garbage Collection.
+    // If this is local to 'init', the native memory becomes invalid and causes SIGABRT.
+    private val tfliteModelBuffer: MappedByteBuffer = FileUtil.loadMappedFile(context, MODEL_NAME)
+    private val modelBuffer: MappedByteBuffer = loadModelFile(context, MODEL_NAME)
+
     private var interpreter: Interpreter? = null
     var isInitialized = false
         private set
 
     // Pre-allocate direct buffers for stability and performance.
-    // TFLite/LiteRT handles flattened ByteBuffers efficiently as long as shapes are declared.
-    private val inputBuffer = ByteBuffer.allocateDirect(INPUT_LENGTH * 4).apply {
+    private val inputBuffer: FloatBuffer = ByteBuffer.allocateDirect(1000 * 4).apply {
         order(ByteOrder.nativeOrder())
-    }
-    private val outputBuffer = ByteBuffer.allocateDirect(1 * 4).apply {
+    }.asFloatBuffer()
+    private val outputBuffer: FloatBuffer = ByteBuffer.allocateDirect(1 * 4).apply {
         order(ByteOrder.nativeOrder())
-    }
+    }.asFloatBuffer()
 
     companion object {
         private const val MODEL_NAME = "resnet10_5gamers_quant.tflite"
@@ -44,17 +51,17 @@ class HeartRateEstimator private constructor(context: Context) {
                 setUseXNNPACK(false)
                 setNumThreads(1)
             }
-            val modelBuffer = loadModelFile(context, MODEL_NAME)
-            
+
+            // The interpreter uses the class-level 'modelBuffer' strong reference
             val interp = Interpreter(modelBuffer, options)
-            
+
             // Explicitly define input shape [batch: 1, length: 1000, channels: 1]
             interp.resizeInput(0, intArrayOf(1, INPUT_LENGTH, 1))
             interp.allocateTensors()
-            
+
             interpreter = interp
             isInitialized = true
-            Log.info { "LiteRT Interpreter initialized successfully with Direct Buffers and Explicit Shape" }
+            Log.info { "LiteRT Interpreter initialized successfully with Strong Reference and Direct Buffers" }
         } catch (t: Throwable) {
             Log.error(t) { "Failed to initialize LiteRT Interpreter: ${t.message}" }
             t.printStackTrace()
@@ -64,7 +71,7 @@ class HeartRateEstimator private constructor(context: Context) {
     /**
      * Estimates the BPM from a segment of PPG data.
      */
-    fun estimateBPM(ppgData: FloatArray): Float {
+    fun estimateBPM(normalizedWindow: FloatArray): Float {
         val interp = interpreter
         if (interp == null || !isInitialized) {
             Log.warn { "Interpreter not ready for inference" }
@@ -72,28 +79,20 @@ class HeartRateEstimator private constructor(context: Context) {
         }
 
         try {
-            // Populate direct input buffer (Zero-copy native access)
-            inputBuffer.clear()
-            val samplesToCopy = ppgData.size.coerceAtMost(INPUT_LENGTH)
-            for (i in 0 until samplesToCopy) {
-                inputBuffer.putFloat(ppgData[i])
-            }
-            // Ensure exactly 1000 floats are provided by zero-padding if necessary
-            for (i in samplesToCopy until INPUT_LENGTH) {
-                inputBuffer.putFloat(0f)
-            }
+            // Load the 1D FloatArray directly into the flat memory buffer
             inputBuffer.rewind()
+            inputBuffer.put(normalizedWindow)
+            inputBuffer.rewind() // Always rewind before feeding to the model!
 
-            // Reset output buffer
+            // Prepare output buffer
             outputBuffer.rewind()
 
-            // Run inference
+            // Run inference safely
             interp.run(inputBuffer, outputBuffer)
 
-            // Read result from direct buffer
+            // Extract the prediction
             outputBuffer.rewind()
-            val estimatedBpm = outputBuffer.float
-            Log.info { "Inference successful. Estimated BPM: $estimatedBpm" }
+            val estimatedBpm = outputBuffer.get()
             return estimatedBpm
         } catch (e: Exception) {
             Log.error(e) { "Inference failed: ${e.message}" }
@@ -101,7 +100,7 @@ class HeartRateEstimator private constructor(context: Context) {
         }
     }
 
-    private fun loadModelFile(context: Context, modelName: String): java.nio.MappedByteBuffer {
+    private fun loadModelFile(context: Context, modelName: String): MappedByteBuffer {
         context.assets.openFd(modelName).use { fileDescriptor ->
             FileInputStream(fileDescriptor.fileDescriptor).use { inputStream ->
                 val fileChannel = inputStream.channel
