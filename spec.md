@@ -22,3 +22,18 @@ The application must successfully initialize the TensorFlow Lite (TFLite) ResNet
 4. **Success Verification**:
     - The `isInitialized` state of the `HeartRateEstimator` must be set to `true` only after the interpreter has successfully allocated its tensors.
     - Initialization failures must be caught and logged, and the system must remain in a safe (non-initialized) state without crashing.
+
+## Troubleshooting and Stability
+
+### JNI Monitor Lock Violations
+
+If a `SIGABRT` or `JNI DETECTED ERROR IN APPLICATION: Still holding a locked object on JNI end` occurs during startup, follow these steps:
+
+1.  **Disable Android Studio Instrumentation**:
+    -   Go to **Settings > Editor > Live Edit** and disable "Live Edit".
+    -   Avoid using "Apply Changes" or "Apply Code Changes" when modifying `HeartRateEstimator.kt` or its dependencies.
+    -   *Reason*: These tools can interfere with the monitor locks held during the JNI-intensive TFLite initialization process.
+
+2.  **Perform a Clean Build**:
+    -   Run `./gradlew clean assembleDebug --no-configuration-cache` to ensure all stale instrumentation is cleared from the APK.
+

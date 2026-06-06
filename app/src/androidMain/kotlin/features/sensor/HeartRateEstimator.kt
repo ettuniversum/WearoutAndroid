@@ -32,9 +32,10 @@ class HeartRateEstimator private constructor(context: Context) {
 
         @Volatile
         private var instance: HeartRateEstimator? = null
+        private val lock = Any()
 
         fun getInstance(context: Context): HeartRateEstimator {
-            return instance ?: synchronized(this) {
+            return instance ?: synchronized(lock) {
                 instance ?: HeartRateEstimator(context.applicationContext).also { instance = it }
             }
         }
