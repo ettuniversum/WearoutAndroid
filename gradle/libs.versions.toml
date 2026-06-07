@@ -17,7 +17,8 @@ tuulbox = "7.0.0"
 tensorflow-lite = "2.17.0"
 tensorflow-lite-support = "0.5.0"
 tensorflow-lite-api-classes = "2.17.0"
-litert = "2.1.0"
+litert = "2.1.5"
+litert-support = "1.4.2"
 
 [libraries]
 accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanist" }
@@ -42,7 +43,8 @@ tuulbox-encoding = { module = "com.juul.tuulbox:encoding", version.ref = "tuulbo
 tuulbox-logging = { module = "com.juul.tuulbox:logging", version.ref = "tuulbox" }
 tensorflow-lite = { module = "org.tensorflow:tensorflow-lite", version.ref = "tensorflow-lite" }
 tensorflow-lite-support = { module = "org.tensorflow:tensorflow-lite-support", version.ref = "tensorflow-lite-support" }
-litert = { module = "com.google.ai.edge.litert:litert", version.ref = "litert" }
+litertCore = { module = "com.google.ai.edge.litert:litert", version.ref = "litert" }
+litertSupport = { module = "com.google.ai.edge.litert:litert-support", version.ref = "litert-support" }
 tflite-api-lib = { module = "org.tensorflow:tensorflow-lite-api", version.ref = "tensorflow-lite-api-classes" }
 
 [bundles]

@@ -131,72 +131,14 @@ class AdafruitViewModel(
                 }
                 if (ppgBuffer.size >= INPUT_LENGTH) {
                     val rawWindow = ppgBuffer.take(1000).toFloatArray()
-                    ppgBuffer.clear()
-                    val b = floatArrayOf(
-                        0.00011138107559506856f,
-                        0.0f,
-                        -0.00044552430238027423f,
-                        0.0f,
-                        0.0006682864535704114f,
-                        0.0f,
-                        -0.00044552430238027423f,
-                        0.0f,
-                        0.00011138107559506856f
-                    )
-                    val a = floatArrayOf(
-                        1.0f,
-                        -7.396479155436211f,
-                        23.97658851843773f,
-                        -44.49346061969696f,
-                        51.69993948976599f,
-                        -38.519874193085826f,
-                        17.9718364201985f,
-                        -4.8006819173678315f,
-                        0.5621314601382241f
-                    )
-                    // Remove baseline wander & high-frequency noise (Zero-Phase)
-                    val filteredWindow = zeroPhaseFilter(rawWindow, b, a)
-
                     // Center the clean peaks
-                    val normalizedWindow = zScoreNormalize(filteredWindow)
-
+                    val normalizedWindow = zScoreNormalize(rawWindow)
                     // Safe C++ Tensor Inference
                     val bpm = hrEstimator.estimateBPM(normalizedWindow)
                     _estimatedBpm.value = bpm
+                    ppgBuffer.clear()
 //                    viewModelScope.launch(Dispatchers.Default) {
-//                        if (hrEstimator.isInitialized) {
-//                            val b = floatArrayOf(
-//                                0.00011138107559506856f,
-//                                0.0f,
-//                                -0.00044552430238027423f,
-//                                0.0f,
-//                                0.0006682864535704114f,
-//                                0.0f,
-//                                -0.00044552430238027423f,
-//                                0.0f,
-//                                0.00011138107559506856f
-//                            )
-//                            val a = floatArrayOf(
-//                                1.0f,
-//                                -7.396479155436211f,
-//                                23.97658851843773f,
-//                                -44.49346061969696f,
-//                                51.69993948976599f,
-//                                -38.519874193085826f,
-//                                17.9718364201985f,
-//                                -4.8006819173678315f,
-//                                0.5621314601382241f
-//                            )
-//                            val rawWindow = ppgBuffer.take(1000).toFloatArray()
-//                            // Remove baseline wander & high-frequency noise (Zero-Phase)
-//                            val filteredWindow = zeroPhaseFilter(rawWindow, b, a)
 //
-//                            // Center the clean peaks
-//                            val normalizedWindow = zScoreNormalize(filteredWindow)
-//
-//                            // Safe C++ Tensor Inference
-//                            val bpm = hrEstimator.estimateBPM(normalizedWindow)
-//                            _estimatedBpm.value = bpm
 //                        } else {
 //                            Log.info { "Inference skipped: LiteRT Interpreter not yet initialized" }
 //                        }

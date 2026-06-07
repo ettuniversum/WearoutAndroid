@@ -27,7 +27,7 @@ class HeartRateEstimator private constructor(context: Context) {
     }.asFloatBuffer()
 
     companion object {
-        private const val MODEL_NAME = "resnet10_5gamers_quant.tflite"
+        private const val MODEL_NAME = "resnet10_5gamers.tflite"
         private const val INPUT_LENGTH = 1000
 
         @Volatile
@@ -42,7 +42,7 @@ class HeartRateEstimator private constructor(context: Context) {
     }
 
     init {
-        Log.info { "Initializing TFLite Interpreter Singleton with model: $MODEL_NAME" }
+        Log.info { "Initializing LiteRT Interpreter Singleton with model: $MODEL_NAME" }
         try {
             Log.info { "Creating Interpreter instance with explicit options (XNNPACK disabled)..." }
             val options = Interpreter.Options().apply {
@@ -51,16 +51,16 @@ class HeartRateEstimator private constructor(context: Context) {
             }
             val interp = Interpreter(modelBuffer, options)
             Log.info { "Interpreter instance created. Input count: ${interp.inputTensorCount}" }
-            
+
             Log.info { "Allocating tensors..." }
             interp.allocateTensors()
             Log.info { "Tensors allocated." }
 
             interpreter = interp
             isInitialized = true
-            Log.info { "TFLite Interpreter initialized successfully" }
+            Log.info { "LiteRT Interpreter initialized successfully" }
         } catch (t: Throwable) {
-            Log.error(t) { "Failed to initialize TFLite Interpreter: ${t.message}" }
+            Log.error(t) { "Failed to initialize LiteRT Interpreter: ${t.message}" }
         }
     }
 

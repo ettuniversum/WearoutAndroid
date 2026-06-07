@@ -50,8 +50,10 @@ kotlin {
                 implementation(libs.bundles.accompanist)
                 implementation(libs.exercise.annotations)
                 implementation(libs.bundles.krayon)
-                implementation(libs.tensorflow.lite)
-                implementation(libs.tensorflow.lite.support)
+                implementation(libs.litertCore)
+                implementation("com.google.ai.edge.litert:litert-support:1.4.2") {
+                    exclude(group = "com.google.ai.edge.litert", module = "litert-api")
+                }
             }
         }
 
