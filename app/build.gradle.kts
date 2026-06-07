@@ -2,7 +2,9 @@ plugins {
     id("com.android.application")
     kotlin("multiplatform")
     id("com.google.devtools.ksp")
+    id("kotlin-parcelize")
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.kotlin.compose)
 }
 
 kotlin {
@@ -48,6 +50,10 @@ kotlin {
                 implementation(libs.bundles.accompanist)
                 implementation(libs.exercise.annotations)
                 implementation(libs.bundles.krayon)
+                implementation(libs.litertCore)
+                implementation("com.google.ai.edge.litert:litert-support:1.4.2") {
+                    exclude(group = "com.google.ai.edge.litert", module = "litert-api")
+                }
             }
         }
 
@@ -80,12 +86,13 @@ android {
 
     namespace = "com.juul.sensortag"
 
-    buildFeatures {
-        compose = true
+    androidResources {
+        noCompress += "tflite"
+        noCompress += "litert"
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = libs.versions.compose.compiler.get()
+    buildFeatures {
+        compose = true
     }
 
     lint {
@@ -94,6 +101,9 @@ android {
 
     packaging {
         resources.excludes.add("/META-INF/versions/*/previous-compilation-data.bin")
+        jniLibs {
+            useLegacyPackaging = false
+        }
     }
 }
 

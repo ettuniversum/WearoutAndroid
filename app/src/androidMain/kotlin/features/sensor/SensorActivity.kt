@@ -6,10 +6,15 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.ProvideTextStyle
 import androidx.compose.material.Slider
@@ -44,13 +49,13 @@ import kotlin.math.roundToInt
 
 
 @Exercise(Extra("macAddress", String::class))
-class AdafruitActivity : ComponentActivity() {
+class SensorActivity : ComponentActivity() {
 
     private val viewModel by viewModels<AdafruitViewModel> {
         object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(
                 modelClass: Class<T>
-            ): T = AdafruitViewModel(application, extras.macAddress) as T
+            ): T = AdafruitViewModel(application, this@SensorActivity.extras.macAddress) as T
         }
     }
 
@@ -62,6 +67,7 @@ class AdafruitActivity : ComponentActivity() {
                 Column(
                     Modifier
                         .background(color = MaterialTheme.colors.background)
+                        .windowInsetsPadding(WindowInsets.safeDrawing)
                         .fillMaxSize()) {
                     TopAppBar(title = { Text("Wearout") })
 
@@ -70,8 +76,18 @@ class AdafruitActivity : ComponentActivity() {
                     ) {
                         Column(Modifier.padding(20.dp)) {
                             val viewState = viewModel.viewState.collectAsState(Disconnected).value
+                            val estimatedBpm = viewModel.estimatedBpm.collectAsState().value
 
-                            Text(viewState.label, fontSize = 18.sp)
+                            Row {
+                                Text(viewState.label, fontSize = 18.sp)
+                                if (viewState is ViewState.Connected) {
+                                    Spacer(Modifier.weight(1f))
+                                    Text("Battery: ${viewState.batteryPercentage}%", fontSize = 18.sp)
+                                }
+                            }
+                            if (estimatedBpm != null) {
+                                Text("Estimated HR: ${estimatedBpm.roundToInt()} BPM", fontSize = 18.sp)
+                            }
                             Spacer(Modifier.size(10.dp))
 
                             AndroidView(

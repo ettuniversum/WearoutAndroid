@@ -13,9 +13,8 @@ import com.juul.kable.NotReadyException
 import com.juul.kable.Peripheral
 import com.juul.kable.State
 import com.juul.kable.peripheral
-import com.juul.sensortag.Sample
 import com.juul.sensortag.Adafruit
-import com.juul.sensortag.DeviceData
+import com.juul.sensortag.Sample
 import com.juul.sensortag.peripheralScope
 import com.juul.tuulbox.logging.Log
 import kotlinx.coroutines.CoroutineScope
@@ -26,6 +25,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
@@ -34,13 +34,13 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.math.absoluteValue
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 import kotlin.time.TimeMark
@@ -83,7 +83,8 @@ class AdafruitViewModel(
     private val autoConnect = MutableStateFlow(false)
 
     // Intermediary scope needed until https://github.com/JuulLabs/kable/issues/577 is resolved.
-    private val scope = CoroutineScope(peripheralScope.coroutineContext + Job(peripheralScope.coroutineContext.job))
+    private val scope =
+        CoroutineScope(peripheralScope.coroutineContext + Job(peripheralScope.coroutineContext.job))
 
     private val peripheral = scope.peripheral(macAddress) {
         autoConnectIf(autoConnect::value)
@@ -91,10 +92,17 @@ class AdafruitViewModel(
     private val adafruit = Adafruit(peripheral)
     private val state = combine(Bluetooth.availability, peripheral.state, ::Pair)
 
+
+    private val _estimatedBpm = MutableStateFlow<Float?>(null)
+    val estimatedBpm = _estimatedBpm.asStateFlow()
+    private val hrEstimator: HeartRateEstimator
+    private val ppgBuffer = mutableListOf<Float>()
+
     private val periodProgress = AtomicInteger()
 
     private var startTime: TimeMark? = null
 
+    val INPUT_LENGTH = 1000
     val data = adafruit.deviceData
         // flow combination occuring with time and sensor stream
         .onStart { startTime = TimeSource.Monotonic.markNow() }
@@ -107,7 +115,122 @@ class AdafruitViewModel(
         .flowOn(Dispatchers.Main)
 
     init {
+        hrEstimator = HeartRateEstimator.getInstance(application)
         viewModelScope.enableAutoReconnect()
+        observePpgForInference()
+
+    }
+
+    private fun observePpgForInference() {
+        adafruit.deviceData
+            .map { it.heartMeasurement?.ppgValue?.toFloat() ?: 0f }
+            .onEach { ppg ->
+                ppgBuffer.add(ppg)
+                if (ppgBuffer.size % 100 == 0) {
+                    Log.verbose { "PPG Buffer accumulation: ${ppgBuffer.size}/${INPUT_LENGTH}" }
+                }
+                if (ppgBuffer.size >= INPUT_LENGTH) {
+                    val rawWindow = ppgBuffer.take(1000).toFloatArray()
+                    // Center the clean peaks
+                    val normalizedWindow = zScoreNormalize(rawWindow)
+                    // Safe C++ Tensor Inference
+                    val bpm = hrEstimator.estimateBPM(normalizedWindow)
+                    _estimatedBpm.value = bpm
+                    ppgBuffer.clear()
+//                    viewModelScope.launch(Dispatchers.Default) {
+//
+//                        } else {
+//                            Log.info { "Inference skipped: LiteRT Interpreter not yet initialized" }
+//                        }
+//                    }
+                }
+            }
+            .launchIn(viewModelScope)
+    }
+
+
+    /**
+     * Core IIR Difference Equation (Equivalent to Python's scipy.signal.lfilter)
+     * Uses strictly primitive math and zero internal object allocations.
+     */
+    fun applyIIRFilter(input: FloatArray, b: FloatArray, a: FloatArray): FloatArray {
+        val output = FloatArray(input.size)
+        val a0 = a[0]
+        val bLen = b.size
+        val aLen = a.size
+
+        for (i in input.indices) {
+            var sum = 0f
+
+            // Feedforward calculation (b coefficients * past inputs)
+            for (j in 0 until bLen) {
+                if (i >= j) {
+                    sum += b[j] * input[i - j]
+                }
+            }
+
+            // Feedback calculation (a coefficients * past outputs)
+            for (j in 1 until aLen) {
+                if (i >= j) {
+                    sum -= a[j] * output[i - j]
+                }
+            }
+
+            output[i] = sum / a0
+        }
+
+        return output
+    }
+
+    /**
+     * Zero-Phase Forward-Backward Filter (Equivalent to Python's scipy.signal.filtfilt)
+     * Uses in-place array reversals to prevent massive GC sweeps.
+     */
+    fun zeroPhaseFilter(input: FloatArray, b: FloatArray, a: FloatArray): FloatArray {
+        // 1. Forward Pass
+        val forwardOutput = applyIIRFilter(input, b, a)
+
+        // 2. Reverse the array IN-PLACE (Generates zero garbage)
+        forwardOutput.reverse()
+
+        // 3. Backward Pass
+        val backwardOutput = applyIIRFilter(forwardOutput, b, a)
+
+        // 4. Reverse the array IN-PLACE back to normal time
+        backwardOutput.reverse()
+
+        return backwardOutput
+    }
+
+    fun zScoreNormalize(window: FloatArray): FloatArray {
+        if (window.isEmpty()) return window
+
+        // 1. Calculate Mean (No boxing)
+        var sum = 0f
+        for (value in window) {
+            sum += value
+        }
+        val mean = sum / window.size
+
+        // 2. Calculate Standard Deviation (No map, no Math.pow)
+        var varianceSum = 0f
+        for (value in window) {
+            val diff = value - mean
+            varianceSum += diff * diff // Much faster than Math.pow
+        }
+        val variance = varianceSum / window.size
+        val stdDev = kotlin.math.sqrt(variance.toDouble()).toFloat()
+
+        // 3. Safe Epsilon
+        val safeStdDev = if (stdDev > 0f) stdDev else 1e-8f
+
+        // 4. Output Array (Allocated exactly once, as primitives)
+        val normalizedWindow = FloatArray(window.size)
+        for (i in window.indices) {
+            normalizedWindow[i] = (window[i] - mean) / safeStdDev
+        }
+
+        return normalizedWindow
     }
 
     private fun CoroutineScope.enableAutoReconnect() {
@@ -168,6 +291,7 @@ class AdafruitViewModel(
     }
 
     override fun onCleared() {
+        hrEstimator.close()
         peripheralScope.launch {
             viewModelScope.coroutineContext.job.join()
             peripheral.disconnect()

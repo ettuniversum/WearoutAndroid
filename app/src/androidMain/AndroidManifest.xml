@@ -27,7 +27,7 @@
         </activity>
 
         <activity
-            android:name=".features.sensor.AdafruitActivity"
+            android:name=".features.sensor.SensorActivity"
             android:exported="false"
             />
 
