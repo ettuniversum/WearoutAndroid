@@ -137,12 +137,6 @@ class AdafruitViewModel(
                     val bpm = hrEstimator.estimateBPM(normalizedWindow)
                     _estimatedBpm.value = bpm
                     ppgBuffer.clear()
-//                    viewModelScope.launch(Dispatchers.Default) {
-//
-//                        } else {
-//                            Log.info { "Inference skipped: LiteRT Interpreter not yet initialized" }
-//                        }
-//                    }
                 }
             }
             .launchIn(viewModelScope)
