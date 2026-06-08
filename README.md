@@ -4,7 +4,7 @@
 analysis. It provides seamless connectivity to BLE pulse sensors (such as the Bluno Beetle Arduino
 chip) and leverages advanced on-device machine learning for heart rate estimation.
 
-![Dashboard Interface](artwork/dashboard.png)
+![Wearout](./artwork/Wearout.png)
 
 ## Key Features
 
