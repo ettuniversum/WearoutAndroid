@@ -109,16 +109,24 @@ class AdafruitViewModel(
         .scan(emptyList<Sample>()) { accumulator, value ->
             val t = startTime!!.elapsedNow().inWholeMilliseconds / 1000f
             val ppg = value.heartMeasurement?.ppgValue?.toFloat() ?: 0f
-            accumulator.takeLast(50) + Sample(t, ppg)
+            accumulator.takeLast(100) + Sample(t, ppg)
         }
         .filter { it.size > 3 }
         .flowOn(Dispatchers.Main)
+
+    private val _ppgSignal = MutableStateFlow<List<Float>>(emptyList())
+    val ppgSignal = _ppgSignal.asStateFlow()
 
     init {
         hrEstimator = HeartRateEstimator.getInstance(application)
         viewModelScope.enableAutoReconnect()
         observePpgForInference()
 
+        viewModelScope.launch {
+            data.collect { samples ->
+                _ppgSignal.value = samples.map { it.x }
+            }
+        }
     }
 
     private fun observePpgForInference() {
