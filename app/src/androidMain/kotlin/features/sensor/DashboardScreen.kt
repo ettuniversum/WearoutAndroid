@@ -23,6 +23,8 @@ import com.patrykandpatrick.vico.compose.chart.line.lineChart
 import com.patrykandpatrick.vico.compose.chart.scroll.rememberChartScrollSpec
 import com.patrykandpatrick.vico.compose.component.shape.shader.verticalGradient
 import com.patrykandpatrick.vico.core.chart.line.LineChart
+import com.patrykandpatrick.vico.core.chart.values.AxisValuesOverrider
+import com.patrykandpatrick.vico.core.entry.ChartEntryModel
 import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
 import com.patrykandpatrick.vico.core.entry.entryOf
 
@@ -196,8 +198,19 @@ fun PpgSignalChartCard(data: List<Float>) {
             Text("Live PPG Signal", style = MaterialTheme.typography.subtitle1, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(16.dp))
 
+            val axisValuesOverrider = remember {
+                object : AxisValuesOverrider<ChartEntryModel> {
+                    override fun getMinY(model: ChartEntryModel): Float =
+                        model.minY - (model.maxY - model.minY) * 0.1f
+
+                    override fun getMaxY(model: ChartEntryModel): Float =
+                        model.maxY + (model.maxY - model.minY) * 0.1f
+                }
+            }
+
             Chart(
                 chart = lineChart(
+                    axisValuesOverrider = axisValuesOverrider,
                     lines = listOf(
                         LineChart.LineSpec(
                             lineColor = MaterialTheme.colors.primary.toArgb(),

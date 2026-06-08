@@ -7,7 +7,7 @@ The application must successfully initialize the TensorFlow Lite (TFLite) ResNet
 ### Requirements
 
 1. **Model Loading**:
-    - The model file `resnet10_5gamers_quant.tflite` must be loaded from the application's assets.
+    - The model file `resnet10_5gamers.tflite` must be loaded from the application's assets.
     - Loading must be performed using `org.tensorflow.lite.support.common.FileUtil` to ensure robust memory mapping.
     - A strong reference to the `MappedByteBuffer` must be maintained at the class level to prevent premature garbage collection of the native memory.
 
@@ -17,7 +17,7 @@ The application must successfully initialize the TensorFlow Lite (TFLite) ResNet
 
 3. **Memory Management**:
     - Input and output buffers must be pre-allocated as `DirectBuffer` objects (`FloatBuffer`) to ensure stability and performance during inference.
-    - The input buffer length must be fixed at `1000` floats.
+    - The input buffer length must be fixed at `100` floats.
 
 4. **Success Verification**:
     - The `isInitialized` state of the `HeartRateEstimator` must be set to `true` only after the interpreter has successfully allocated its tensors.

@@ -102,14 +102,20 @@ class AdafruitViewModel(
 
     private var startTime: TimeMark? = null
 
-    val INPUT_LENGTH = 1000
+    val INPUT_LENGTH = 100
     val data = adafruit.deviceData
         // flow combination occuring with time and sensor stream
         .onStart { startTime = TimeSource.Monotonic.markNow() }
         .scan(emptyList<Sample>()) { accumulator, value ->
             val t = startTime!!.elapsedNow().inWholeMilliseconds / 1000f
             val ppg = value.heartMeasurement?.ppgValue?.toFloat() ?: 0f
-            accumulator.takeLast(100) + Sample(t, ppg)
+            
+            // Cycle every 600 samples (~30 seconds at 20Hz)
+            if (accumulator.size >= 600) {
+                listOf(Sample(t, ppg))
+            } else {
+                accumulator + Sample(t, ppg)
+            }
         }
         .filter { it.size > 3 }
         .flowOn(Dispatchers.Main)
@@ -134,11 +140,12 @@ class AdafruitViewModel(
             .map { it.heartMeasurement?.ppgValue?.toFloat() ?: 0f }
             .onEach { ppg ->
                 ppgBuffer.add(ppg)
-                if (ppgBuffer.size % 100 == 0) {
-                    Log.verbose { "PPG Buffer accumulation: ${ppgBuffer.size}/${INPUT_LENGTH}" }
+                if (ppgBuffer.size % 50 == 0) {
+                    Log.verbose { "PPG Buffer accumulation: ${ppgBuffer.size}/200" }
                 }
-                if (ppgBuffer.size >= INPUT_LENGTH) {
-                    val rawWindow = ppgBuffer.take(1000).toFloatArray()
+                if (ppgBuffer.size >= 200) {
+                    // Take the last 100 samples for the 100Hz model
+                    val rawWindow = ppgBuffer.takeLast(100).toFloatArray()
                     // Center the clean peaks
                     val normalizedWindow = zScoreNormalize(rawWindow)
                     // Safe C++ Tensor Inference

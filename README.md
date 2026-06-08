@@ -25,8 +25,7 @@ The application features a sleek, data-driven dashboard built entirely with **Je
 Wearout utilizes the latest **LiteRT** (formerly TensorFlow Lite) runtime for high-efficiency,
 on-device inference.
 
-* **1D ResNet Model**: Employs a specialized 1D Residual Network (`resnet10_5gamers_quant.tflite`)
-  to process 1000-point signal windows for accurate heart rate estimation.
+*   **1D ResNet Model**: Employs a specialized 1D Residual Network (`resnet10_5gamers.tflite`) to process 100-point signal windows for accurate heart rate estimation.
 * **Native Stability**:
     * **Memory Mapping**: Uses `FileUtil` for robust, zero-copy model loading from assets.
     * **CPU Optimization**: Configured with optimized threading and **XNNPACK** explicitly managed
