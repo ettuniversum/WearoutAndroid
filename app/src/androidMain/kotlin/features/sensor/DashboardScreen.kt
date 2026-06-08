@@ -180,9 +180,10 @@ fun PpgSignalChartCard(data: List<Float>) {
 
     LaunchedEffect(data) {
         if (data.isNotEmpty()) {
-            chartEntryModelProducer.setEntries(
-                data.mapIndexed { index, value -> entryOf(index, value) }
-            )
+            val entries = data.mapIndexed { index, amplitude ->
+                entryOf(x = index.toFloat(), y = amplitude)
+            }
+            chartEntryModelProducer.setEntries(listOf(entries))
         }
     }
 
@@ -195,34 +196,32 @@ fun PpgSignalChartCard(data: List<Float>) {
         elevation = 4.dp
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Live PPG Signal", style = MaterialTheme.typography.subtitle1, fontWeight = FontWeight.Bold)
+            Text("Live PPG Signal (${data.size})", style = MaterialTheme.typography.subtitle1, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(16.dp))
 
             val axisValuesOverrider = remember {
                 object : AxisValuesOverrider<ChartEntryModel> {
                     override fun getMinY(model: ChartEntryModel): Float =
-                        model.minY - (model.maxY - model.minY) * 0.1f
+                        model.minY - (model.maxY - model.minY).coerceAtLeast(1f) * 0.2f
 
                     override fun getMaxY(model: ChartEntryModel): Float =
-                        model.maxY + (model.maxY - model.minY) * 0.1f
+                        model.maxY + (model.maxY - model.minY).coerceAtLeast(1f) * 0.2f
                 }
             }
 
             Chart(
+                modifier = Modifier.fillMaxSize(),
                 chart = lineChart(
                     axisValuesOverrider = axisValuesOverrider,
                     lines = listOf(
                         LineChart.LineSpec(
-                            lineColor = MaterialTheme.colors.primary.toArgb(),
-                            lineBackgroundShader = verticalGradient(
-                                arrayOf(MaterialTheme.colors.primary, Color.Transparent)
-                            )
+                            lineColor = Color.Yellow.toArgb(),
+                            lineThicknessDp = 3f,
                         )
                     )
                 ),
                 chartModelProducer = chartEntryModelProducer,
-                startAxis = rememberStartAxis(),
-                bottomAxis = rememberBottomAxis(),
+                startAxis = rememberStartAxis(guideline = null),
                 chartScrollSpec = rememberChartScrollSpec(isScrollEnabled = false)
             )
         }

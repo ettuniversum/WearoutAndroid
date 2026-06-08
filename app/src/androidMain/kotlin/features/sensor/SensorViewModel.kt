@@ -14,17 +14,17 @@ import com.juul.kable.Peripheral
 import com.juul.kable.State
 import com.juul.kable.peripheral
 import com.juul.sensortag.Adafruit
-import com.juul.sensortag.Sample
 import com.juul.sensortag.peripheralScope
 import com.juul.tuulbox.logging.Log
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
@@ -32,19 +32,16 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.scan
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
-import kotlin.time.TimeMark
-import kotlin.time.TimeSource
 
 private val reconnectDelay = 1.seconds
 
@@ -100,39 +97,24 @@ class AdafruitViewModel(
 
     private val periodProgress = AtomicInteger()
 
-    private var startTime: TimeMark? = null
+    private val UI_WINDOW_MAX_SAMPLES = 100
 
-    val INPUT_LENGTH = 100
-    val data = adafruit.deviceData
-        // flow combination occuring with time and sensor stream
-        .onStart { startTime = TimeSource.Monotonic.markNow() }
-        .scan(emptyList<Sample>()) { accumulator, value ->
-            val t = startTime!!.elapsedNow().inWholeMilliseconds / 1000f
-            val ppg = value.heartMeasurement?.ppgValue?.toFloat() ?: 0f
-            
-            // Cycle every 600 samples (~30 seconds at 20Hz)
-            if (accumulator.size >= 600) {
-                listOf(Sample(t, ppg))
+    val ppgSignal: StateFlow<List<Float>> = adafruit.deviceData
+        .map { it.heartMeasurement?.ppgValue?.toFloat() ?: 0f }
+        .scan(emptyList<Float>()) { accumulator, value ->
+            val newList = if (accumulator.size >= UI_WINDOW_MAX_SAMPLES) {
+                accumulator.drop(1) + value
             } else {
-                accumulator + Sample(t, ppg)
+                accumulator + value
             }
+            newList
         }
-        .filter { it.size > 3 }
-        .flowOn(Dispatchers.Main)
-
-    private val _ppgSignal = MutableStateFlow<List<Float>>(emptyList())
-    val ppgSignal = _ppgSignal.asStateFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
         hrEstimator = HeartRateEstimator.getInstance(application)
         viewModelScope.enableAutoReconnect()
         observePpgForInference()
-
-        viewModelScope.launch {
-            data.collect { samples ->
-                _ppgSignal.value = samples.map { it.x }
-            }
-        }
     }
 
     private fun observePpgForInference() {
