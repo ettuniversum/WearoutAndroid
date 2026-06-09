@@ -1,36 +1,42 @@
-# Wearout
+# Wearout ![badge][badge-android]
 
-**Wearout** is a modern Android application designed for real-time heart rate monitoring and signal
-analysis. It provides seamless connectivity to BLE pulse sensors (such as the Bluno Beetle Arduino
-chip) and leverages advanced on-device machine learning for heart rate estimation.
+**Wearout** is a modern Android application designed for real-time heart rate monitoring and pulse
+wave morphology analysis. It provides seamless connectivity to BLE pulse sensors and leverages
+advanced on-device machine learning for high-precision heart rate estimation.
 
-![Wearout](./artwork/Wearout.png)
+![Dashboard Interface](artwork/Wearout.png)
 
 ## Key Features
 
-### 1. Modern Dashboard Interface
+### 1. Medical-Grade Oscilloscope Dashboard
 
-The application features a sleek, data-driven dashboard built entirely with **Jetpack Compose**.
+The application features a sleek, high-performance dashboard built entirely with **Jetpack Compose
+**.
 
 * **Hero BPM Display**: A prominent heart rate indicator with a smooth pulsing animation synced to
   the detected rhythm.
-* **Real-time PPG Visualization**: A high-performance live chart powered by the **Vico charting
-  library**, displaying the raw PPG (Photoplethysmogram) signal with gradient fills and smooth line
-  interpolation.
+* **Real-time Oscilloscope Sweep**: A custom **Canvas-based** signal visualizer that implements a
+  professional "sweep" effect. It handles `Float.NaN` gaps in real-time to provide the
+  characteristic "moving eraser" effect found on clinical patient monitors.
+* **In-Place Adaptive Scaling**: The signal automatically zooms and centers within the view to
+  ensure maximum visibility of systolic and diastolic peaks, regardless of DC offset or signal
+  drift.
 * **Device Telemetry**: Real-time monitoring of ESP32 battery levels and connection status via a
   dynamic pill indicator.
 
 ### 2. LiteRT (TensorFlow Lite) Integration
 
-Wearout utilizes the latest **LiteRT** (formerly TensorFlow Lite) runtime for high-efficiency,
-on-device inference.
+Wearout utilizes the latest **LiteRT** runtime for high-efficiency, on-device inference.
 
-*   **1D ResNet Model**: Employs a specialized 1D Residual Network (`resnet10_5gamers.tflite`) to process 100-point signal windows for accurate heart rate estimation.
+* **1D ResNet Model**: Employs a specialized 1D Residual Network (`resnet10_5gamers.tflite`) to
+  process 100-point signal windows for accurate heart rate estimation.
+* **DC Blocker DSP**: Implements a standard DSP difference equation (
+  `y[n] = x[n] - x[n-1] + R * y[n-1]`) to strip massive DC baselines and slow signal drift before
+  visualization and inference.
 * **Native Stability**:
     * **Memory Mapping**: Uses `FileUtil` for robust, zero-copy model loading from assets.
-    * **CPU Optimization**: Configured with optimized threading and **XNNPACK** explicitly managed
-      for maximum compatibility across various Android architectures (including MediaTek and
-      Qualcomm).
+    * **CPU Optimization**: Configured with optimized threading and manual XNNPACK management for
+      maximum compatibility across various Android architectures.
     * **JNI Safety**: Implements a private lock mechanism to ensure stable initialization even when
       Android Studio instrumentation tools (like Live Edit) are active.
 
@@ -50,7 +56,7 @@ Low Energy.
 
 * **Android SDK**: Compiled against API 35.
 * **Kotlin**: 2.2.10
-* **Compose**: 1.5.4 (with Material 3 components)
+* **Compose**: 1.5.4
 
 ### Build Instructions
 
@@ -68,11 +74,10 @@ The project can be built via [Android Studio] or from the command line:
 
 ## Technical Architecture
 
-* **UI Layer**: Jetpack Compose (Material 3).
-* **Charting**: Vico (Compose-m3 integration).
+* **UI Layer**: Jetpack Compose (Material 2/3 Hybrid).
+* **Signal Processing**: Custom DSP (DC Blocker) + ArrayDeque Sliding Windows.
 * **ML Layer**: LiteRT 2.1.5 + LiteRT Support.
 * **Concurrency**: Kotlin Coroutines & Flow.
-* **Dependency Injection**: ViewModel with custom Factories for Activity-specific state.
 
 ## Legal Disclaimer
 
