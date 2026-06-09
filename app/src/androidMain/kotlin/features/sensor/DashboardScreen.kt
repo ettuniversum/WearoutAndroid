@@ -1,32 +1,44 @@
 package com.juul.sensortag.features.sensor
 
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.layout.*
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Card
+import androidx.compose.material.Icon
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Scaffold
+import androidx.compose.material.Surface
+import androidx.compose.material.Text
+import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.juul.sensortag.AppTheme
-import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
-import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
-import com.patrykandpatrick.vico.compose.chart.Chart
-import com.patrykandpatrick.vico.compose.chart.line.lineChart
-import com.patrykandpatrick.vico.compose.chart.scroll.rememberChartScrollSpec
-import com.patrykandpatrick.vico.compose.component.shape.shader.verticalGradient
-import com.patrykandpatrick.vico.core.chart.line.LineChart
-import com.patrykandpatrick.vico.core.chart.values.AxisValuesOverrider
-import com.patrykandpatrick.vico.core.entry.ChartEntryModel
-import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
-import com.patrykandpatrick.vico.core.entry.entryOf
 
 @Composable
 fun DashboardScreen(
@@ -54,7 +66,7 @@ fun DashboardScreen(
                 // 2. Secondary Metrics: Battery & Status Cards
                 MetricsRow(batteryLevel = batteryLevel)
 
-                // 3. Modern Chart: PPG Signal Visualizer
+                // 3. Custom Canvas Chart: PPG Signal Visualizer
                 PpgSignalChartCard(data = ppgSignalData)
             }
         }
@@ -66,7 +78,6 @@ fun WearoutTopBar(status: String) {
     TopAppBar(
         title = { Text("Wearout Monitor", fontWeight = FontWeight.Bold) },
         actions = {
-            // Connection indicator pill
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 color = if (status == "Connected") Color(0xFF4CAF50) else Color(0xFFE57373),
@@ -85,7 +96,6 @@ fun WearoutTopBar(status: String) {
 
 @Composable
 fun HeroBpmDisplay(bpm: Int) {
-    // Subtle pulsing animation for the heart icon
     val infiniteTransition = rememberInfiniteTransition()
     val scale by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -167,7 +177,11 @@ fun MetricCard(title: String, value: String, modifier: Modifier = Modifier) {
         elevation = 2.dp
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(text = title, style = MaterialTheme.typography.overline, color = MaterialTheme.colors.onSurface)
+            Text(
+                text = title,
+                style = MaterialTheme.typography.overline,
+                color = MaterialTheme.colors.onSurface
+            )
             Spacer(modifier = Modifier.height(4.dp))
             Text(text = value, style = MaterialTheme.typography.h6, fontWeight = FontWeight.Bold)
         }
@@ -176,17 +190,7 @@ fun MetricCard(title: String, value: String, modifier: Modifier = Modifier) {
 
 @Composable
 fun PpgSignalChartCard(data: List<Float>) {
-    val chartEntryModelProducer = remember { ChartEntryModelProducer() }
-
-    LaunchedEffect(data) {
-        if (data.isNotEmpty()) {
-            val entries = data.mapIndexed { index, amplitude ->
-                entryOf(x = index.toFloat(), y = amplitude)
-            }
-            chartEntryModelProducer.setEntries(listOf(entries))
-        }
-    }
-
+    val primaryColor = MaterialTheme.colors.primary
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -196,34 +200,85 @@ fun PpgSignalChartCard(data: List<Float>) {
         elevation = 4.dp
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Live PPG Signal (${data.size})", style = MaterialTheme.typography.subtitle1, fontWeight = FontWeight.Bold)
+            Text(
+                "Live PPG Signal",
+                style = MaterialTheme.typography.subtitle1,
+                fontWeight = FontWeight.Bold
+            )
             Spacer(modifier = Modifier.height(16.dp))
 
-            val axisValuesOverrider = remember {
-                object : AxisValuesOverrider<ChartEntryModel> {
-                    override fun getMinY(model: ChartEntryModel): Float =
-                        model.minY - (model.maxY - model.minY).coerceAtLeast(1f) * 0.2f
-
-                    override fun getMaxY(model: ChartEntryModel): Float =
-                        model.maxY + (model.maxY - model.minY).coerceAtLeast(1f) * 0.2f
-                }
-            }
-
-            Chart(
-                modifier = Modifier.fillMaxSize(),
-                chart = lineChart(
-                    axisValuesOverrider = axisValuesOverrider,
-                    lines = listOf(
-                        LineChart.LineSpec(
-                            lineColor = Color.Yellow.toArgb(),
-                            lineThicknessDp = 3f,
-                        )
-                    )
-                ),
-                chartModelProducer = chartEntryModelProducer,
-                startAxis = rememberStartAxis(guideline = null),
-                chartScrollSpec = rememberChartScrollSpec(isScrollEnabled = false)
+            RealTimePpgChart(
+                data = data,
+                color = primaryColor,
+                modifier = Modifier.fillMaxSize()
             )
         }
+    }
+}
+
+@Composable
+fun RealTimePpgChart(
+    data: List<Float>,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier) {
+        if (data.isEmpty()) return@Canvas
+
+        // 1. Calculate the dynamic Y-range (Adaptive Scaling)
+        var minY = Float.MAX_VALUE
+        var maxY = Float.MIN_VALUE
+        var hasValidData = false
+
+        for (value in data) {
+            if (!value.isNaN()) {
+                if (value < minY) minY = value
+                if (value > maxY) maxY = value
+                hasValidData = true
+            }
+        }
+
+        if (!hasValidData) return@Canvas
+
+        // Add 10% padding to the range
+        val range = (maxY - minY).coerceAtLeast(1f)
+        val drawMinY = minY - (range * 0.1f)
+        val drawMaxY = maxY + (range * 0.1f)
+        val drawRange = drawMaxY - drawMinY
+
+        val width = size.width
+        val height = size.height
+        val path = Path()
+        var isFirstPoint = true
+
+        // 2. Draw the path with NaN gap handling
+        data.forEachIndexed { index, value ->
+            val x = (index.toFloat() / (data.size - 1)) * width
+            
+            if (value.isNaN()) {
+                isFirstPoint = true // Break the path at NaN
+            } else {
+                // Normalize Y to 0..1 based on drawRange, then scale to height
+                // Note: Canvas Y is top-down, so we subtract from height
+                val normalizedY = (value - drawMinY) / drawRange
+                val y = height - (normalizedY * height)
+
+                if (isFirstPoint) {
+                    path.moveTo(x, y)
+                    isFirstPoint = false
+                } else {
+                    path.lineTo(x, y)
+                }
+            }
+        }
+
+        drawPath(
+            path = path,
+            color = color,
+            style = Stroke(
+                width = 3.dp.toPx(),
+                cap = StrokeCap.Round
+            )
+        )
     }
 }
