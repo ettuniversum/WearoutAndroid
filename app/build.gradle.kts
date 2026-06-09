@@ -50,6 +50,12 @@ kotlin {
                 implementation(libs.bundles.accompanist)
                 implementation(libs.exercise.annotations)
                 implementation(libs.bundles.krayon)
+                
+                val vicoVersion = "1.15.0"
+                implementation("com.patrykandpatrick.vico:compose:$vicoVersion")
+                implementation("com.patrykandpatrick.vico:compose-m3:$vicoVersion")
+                implementation("com.patrykandpatrick.vico:core:$vicoVersion")
+
                 implementation(libs.litertCore)
                 implementation("com.google.ai.edge.litert:litert-support:1.4.2") {
                     exclude(group = "com.google.ai.edge.litert", module = "litert-api")

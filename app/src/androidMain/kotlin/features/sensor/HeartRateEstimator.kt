@@ -27,8 +27,8 @@ class HeartRateEstimator private constructor(context: Context) {
     }.asFloatBuffer()
 
     companion object {
-        private const val MODEL_NAME = "resnet10_5gamers.tflite"
-        private const val INPUT_LENGTH = 1000
+        private const val MODEL_NAME = "resnet10_5gamers_10Hz.tflite"
+        private const val INPUT_LENGTH = 100
 
         @Volatile
         private var instance: HeartRateEstimator? = null

@@ -14,17 +14,17 @@ import com.juul.kable.Peripheral
 import com.juul.kable.State
 import com.juul.kable.peripheral
 import com.juul.sensortag.Adafruit
-import com.juul.sensortag.Sample
 import com.juul.sensortag.peripheralScope
 import com.juul.tuulbox.logging.Log
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
@@ -32,19 +32,16 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.flow.scan
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
-import kotlin.time.TimeMark
-import kotlin.time.TimeSource
 
 private val reconnectDelay = 1.seconds
 
@@ -100,25 +97,55 @@ class AdafruitViewModel(
 
     private val periodProgress = AtomicInteger()
 
-    private var startTime: TimeMark? = null
+    private val UI_WINDOW_MAX_SAMPLES = 200
+    private val ERASE_BAR_WIDTH = 8
 
-    val INPUT_LENGTH = 1000
-    val data = adafruit.deviceData
-        // flow combination occuring with time and sensor stream
-        .onStart { startTime = TimeSource.Monotonic.markNow() }
-        .scan(emptyList<Sample>()) { accumulator, value ->
-            val t = startTime!!.elapsedNow().inWholeMilliseconds / 1000f
-            val ppg = value.heartMeasurement?.ppgValue?.toFloat() ?: 0f
-            accumulator.takeLast(50) + Sample(t, ppg)
+    // Initialize a fixed array filled with NaN (Vico will ignore NaN and leave a gap)
+    private val sweepBuffer = FloatArray(UI_WINDOW_MAX_SAMPLES) { Float.NaN }
+    private var penIndex = 0
+
+    // --- DC BLOCKER STATE VARIABLES ---
+    private var prevX = 0f
+    private var prevY = 0f
+    private val filterR = 0.95f // 95% filter strength is optimal for PPG
+
+    /**
+     * Standard DSP Difference Equation: y[n] = x[n] - x[n-1] + R * y[n-1]
+     * Strips the massive DC baseline and slow drift.
+     */
+    private fun removeDcOffset(sample: Float): Float {
+        val filteredY = sample - prevX + (filterR * prevY)
+        prevX = sample
+        prevY = filteredY
+        return filteredY
+    }
+
+    val ppgSignal: StateFlow<List<Float>> = adafruit.deviceData
+        .mapNotNull { it.heartMeasurement?.ppgValue?.toFloat() }
+        .filter { it > 100f }
+        .map { rawSample -> removeDcOffset(rawSample) }
+        .map { filteredValue ->
+            // 1. Write the new value at the "pen"
+            sweepBuffer[penIndex] = filteredValue
+
+            // 2. Erase the data just ahead of the pen to create the visual gap
+            for (i in 1..ERASE_BAR_WIDTH) {
+                val clearIndex = (penIndex + i) % UI_WINDOW_MAX_SAMPLES
+                sweepBuffer[clearIndex] = Float.NaN
+            }
+
+            // 3. Move the pen forward, wrapping back to 0 at the edge
+            penIndex = (penIndex + 1) % UI_WINDOW_MAX_SAMPLES
+
+            // 4. Return a List copy to trigger Jetpack Compose recomposition
+            sweepBuffer.toList()
         }
-        .filter { it.size > 3 }
-        .flowOn(Dispatchers.Main)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
         hrEstimator = HeartRateEstimator.getInstance(application)
         viewModelScope.enableAutoReconnect()
         observePpgForInference()
-
     }
 
     private fun observePpgForInference() {
@@ -126,11 +153,12 @@ class AdafruitViewModel(
             .map { it.heartMeasurement?.ppgValue?.toFloat() ?: 0f }
             .onEach { ppg ->
                 ppgBuffer.add(ppg)
-                if (ppgBuffer.size % 100 == 0) {
-                    Log.verbose { "PPG Buffer accumulation: ${ppgBuffer.size}/${INPUT_LENGTH}" }
+                if (ppgBuffer.size % 50 == 0) {
+                    Log.verbose { "PPG Buffer accumulation: ${ppgBuffer.size}/200" }
                 }
-                if (ppgBuffer.size >= INPUT_LENGTH) {
-                    val rawWindow = ppgBuffer.take(1000).toFloatArray()
+                if (ppgBuffer.size >= 200) {
+                    // Take the last 100 samples for the 100Hz model
+                    val rawWindow = ppgBuffer.takeLast(100).toFloatArray()
                     // Center the clean peaks
                     val normalizedWindow = zScoreNormalize(rawWindow)
                     // Safe C++ Tensor Inference
@@ -308,9 +336,3 @@ private fun Peripheral.remoteRssi() = flow {
     if (cause !is NotReadyException) throw cause
 }
 
-
-private suspend fun Adafruit.writeGyroPeriodProgress(progress: Int) {
-    val period = progress / 100f * (2550 - 100) + 100
-    Log.verbose { "period = $period" }
-    //writeGyroPeriod(period.toLong())
-}
