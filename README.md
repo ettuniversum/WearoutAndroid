@@ -4,7 +4,7 @@
 wave morphology analysis. It provides seamless connectivity to BLE pulse sensors and leverages
 advanced on-device machine learning for high-precision heart rate estimation.
 
-![Dashboard Interface](artwork/Wearout.png)
+![Wearout](./artwork/Wearout.png)
 
 ## Key Features
 
