@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalTime::class)
-
 package com.juul.sensortag.features.sensor
 
 import android.app.Application
@@ -41,7 +39,6 @@ import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.ExperimentalTime
 
 private val reconnectDelay = 1.seconds
 
@@ -95,6 +92,7 @@ class AdafruitViewModel(
     private val hrEstimator: HeartRateEstimator
     private val ppgBuffer = mutableListOf<Float>()
 
+    private val PPG_MAX_SAMPLES = 1000
     private val periodProgress = AtomicInteger()
 
     private val UI_WINDOW_MAX_SAMPLES = 200
@@ -154,13 +152,15 @@ class AdafruitViewModel(
             .onEach { ppg ->
                 ppgBuffer.add(ppg)
                 if (ppgBuffer.size % 50 == 0) {
-                    Log.verbose { "PPG Buffer accumulation: ${ppgBuffer.size}/200" }
+                    Log.verbose { "PPG Buffer accumulation: ${ppgBuffer.size}/${PPG_MAX_SAMPLES}" }
                 }
-                if (ppgBuffer.size >= 200) {
+                if (ppgBuffer.size >= PPG_MAX_SAMPLES) {
                     // Take the last 100 samples for the 100Hz model
-                    val rawWindow = ppgBuffer.takeLast(100).toFloatArray()
+                    val rawWindow10Hz = ppgBuffer.takeLast(1000).toFloatArray()
+                    // Filter the noise and upsample to 100Hz (1000 samples)
+                    val upsampledWindow100Hz = filterAndUpsample(rawWindow10Hz, targetSize = 1000)
                     // Center the clean peaks
-                    val normalizedWindow = zScoreNormalize(rawWindow)
+                    val normalizedWindow = zScoreNormalize(upsampledWindow100Hz)
                     // Safe C++ Tensor Inference
                     val bpm = hrEstimator.estimateBPM(normalizedWindow)
                     _estimatedBpm.value = bpm
@@ -172,56 +172,53 @@ class AdafruitViewModel(
 
 
     /**
-     * Core IIR Difference Equation (Equivalent to Python's scipy.signal.lfilter)
-     * Uses strictly primitive math and zero internal object allocations.
+     * Applies a Low-Pass Filter (EMA) to 10Hz data, then upsamples it
+     * to the target size using a Catmull-Rom Cubic Spline.
      */
-    fun applyIIRFilter(input: FloatArray, b: FloatArray, a: FloatArray): FloatArray {
-        val output = FloatArray(input.size)
-        val a0 = a[0]
-        val bLen = b.size
-        val aLen = a.size
+    fun filterAndUpsample(input: FloatArray, targetSize: Int): FloatArray {
+        if (input.isEmpty()) return FloatArray(targetSize)
 
-        for (i in input.indices) {
-            var sum = 0f
+        // STEP 1: Exponential Moving Average (EMA) Filter
+        // Alpha controls smoothing. 1.0 = no smoothing. 0.3 = heavy smoothing.
+        // This destroys the dicrotic notch so the spline doesn't double-count peaks.
+        val alpha = 0.3f
+        val filtered = FloatArray(input.size)
+        filtered[0] = input[0]
+        for (i in 1 until input.size) {
+            filtered[i] = alpha * input[i] + (1 - alpha) * filtered[i - 1]
+        }
 
-            // Feedforward calculation (b coefficients * past inputs)
-            for (j in 0 until bLen) {
-                if (i >= j) {
-                    sum += b[j] * input[i - j]
-                }
-            }
+        // STEP 2: Catmull-Rom Cubic Spline Interpolation
+        val output = FloatArray(targetSize)
+        // The step size to map 100 points across 1000 points
+        val ratio = (filtered.size - 1).toFloat() / (targetSize - 1).toFloat()
 
-            // Feedback calculation (a coefficients * past outputs)
-            for (j in 1 until aLen) {
-                if (i >= j) {
-                    sum -= a[j] * output[i - j]
-                }
-            }
+        for (i in 0 until targetSize) {
+            val exactPosition = i * ratio
+            val index = exactPosition.toInt()
+            val t = exactPosition - index // The fractional distance between two points
 
-            output[i] = sum / a0
+            // Grab the 4 points needed to calculate the cubic curve
+            // coerceAtLeast and coerceAtMost prevent array out-of-bounds errors at the edges
+            val p0 = filtered[(index - 1).coerceAtLeast(0)]
+            val p1 = filtered[index]
+            val p2 = filtered[(index + 1).coerceAtMost(filtered.size - 1)]
+            val p3 = filtered[(index + 2).coerceAtMost(filtered.size - 1)]
+
+            // The Catmull-Rom Spline Polynomial Math
+            val t2 = t * t
+            val t3 = t2 * t
+            val interpolatedValue = 0.5f * (
+                    (2f * p1) +
+                            (-p0 + p2) * t +
+                            (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2 +
+                            (-p0 + 3f * p1 - 3f * p2 + p3) * t3
+                    )
+
+            output[i] = interpolatedValue
         }
 
         return output
-    }
-
-    /**
-     * Zero-Phase Forward-Backward Filter (Equivalent to Python's scipy.signal.filtfilt)
-     * Uses in-place array reversals to prevent massive GC sweeps.
-     */
-    fun zeroPhaseFilter(input: FloatArray, b: FloatArray, a: FloatArray): FloatArray {
-        // 1. Forward Pass
-        val forwardOutput = applyIIRFilter(input, b, a)
-
-        // 2. Reverse the array IN-PLACE (Generates zero garbage)
-        forwardOutput.reverse()
-
-        // 3. Backward Pass
-        val backwardOutput = applyIIRFilter(forwardOutput, b, a)
-
-        // 4. Reverse the array IN-PLACE back to normal time
-        backwardOutput.reverse()
-
-        return backwardOutput
     }
 
     fun zScoreNormalize(window: FloatArray): FloatArray {

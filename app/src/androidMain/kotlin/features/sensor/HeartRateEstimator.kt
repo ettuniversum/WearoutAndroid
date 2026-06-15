@@ -19,7 +19,7 @@ class HeartRateEstimator private constructor(context: Context) {
         private set
 
     // Pre-allocate direct buffers for stability and performance.
-    private val inputBuffer: FloatBuffer = ByteBuffer.allocateDirect(INPUT_LENGTH * 4).apply {
+    private val inputBuffer: FloatBuffer = ByteBuffer.allocateDirect(BUFFER_LENGTH * 4).apply {
         order(ByteOrder.nativeOrder())
     }.asFloatBuffer()
     private val outputBuffer: FloatBuffer = ByteBuffer.allocateDirect(1 * 4).apply {
@@ -27,8 +27,9 @@ class HeartRateEstimator private constructor(context: Context) {
     }.asFloatBuffer()
 
     companion object {
-        private const val MODEL_NAME = "resnet10_5gamers_10Hz.tflite"
+        private const val MODEL_NAME = "resnet10_5gamers.tflite"
         private const val INPUT_LENGTH = 100
+        private const val BUFFER_LENGTH = 1000
 
         @Volatile
         private var instance: HeartRateEstimator? = null
