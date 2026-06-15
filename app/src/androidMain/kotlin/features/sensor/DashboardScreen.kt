@@ -11,11 +11,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Card
 import androidx.compose.material.Icon
@@ -49,6 +52,7 @@ fun DashboardScreen(
 ) {
     AppTheme {
         Scaffold(
+            modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars),
             topBar = { WearoutTopBar(connectionStatus) },
             backgroundColor = MaterialTheme.colors.background
         ) { paddingValues ->
@@ -60,13 +64,13 @@ fun DashboardScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                // 1. Hero Section: Pulsing Heart Rate
+                // Pulsing Heart Rate
                 HeroBpmDisplay(bpm = currentBpm)
 
-                // 2. Secondary Metrics: Battery & Status Cards
+                // Secondary Metrics: Battery & Status Cards
                 MetricsRow(batteryLevel = batteryLevel)
 
-                // 3. Custom Canvas Chart: PPG Signal Visualizer
+                // PPG Signal Visualizer
                 PpgSignalChartCard(data = ppgSignalData)
             }
         }
@@ -254,7 +258,7 @@ fun RealTimePpgChart(
         // 2. Draw the path with NaN gap handling
         data.forEachIndexed { index, value ->
             val x = (index.toFloat() / (data.size - 1)) * width
-            
+
             if (value.isNaN()) {
                 isFirstPoint = true // Break the path at NaN
             } else {
